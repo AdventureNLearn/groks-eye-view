@@ -223,7 +223,7 @@
 }
 
 .radio-panel {
-  max-height: min(58vh, 28rem);
+  max-height: min(70vh, 36rem);
 }
 
 @media (min-width: 768px) {

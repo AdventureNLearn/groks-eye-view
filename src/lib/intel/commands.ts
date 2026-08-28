@@ -1,4 +1,5 @@
 import type { CommandAction, LayerId, SceneId, StyleId } from "./types";
+import { PRESET_STATIONS } from "./radio";
 
 const LAYERS: { re: RegExp; id: LayerId }[] = [
   { re: /military|mil(?:itary)? (?:ads-?b|flights?|traffic)/i, id: "military" },
@@ -35,19 +36,18 @@ export function parseCommand(raw: string): CommandAction {
   if (/\b(pause radio|stop radio|radio off|mute radio)\b/i.test(text)) {
     return { type: "radio", on: false };
   }
-  if (
-    /\b(creedence|ccr|swamp rock|lookin.? out|green river|fortunate son)\b/i.test(text) &&
-    /\b(play|put on|tune|radio|spin)\b/i.test(text)
-  ) {
-    return { type: "radio", id: "ccr", on: true };
+  for (const st of PRESET_STATIONS) {
+    const names = [st.name, st.id, ...(st.aliases ?? [])]
+      .map((n) => n.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"))
+      .filter((n) => n.length >= 3);
+    const nameRe = new RegExp(`\\b(${names.join("|")})\\b`, "i");
+    if (nameRe.test(text) && /\b(play|put on|tune|radio|spin)\b/i.test(text)) {
+      return { type: "radio", id: st.id, on: true };
+    }
   }
   if (/^(play |put on |spin )?(some )?(ccr|creedence)$/i.test(text)) {
     return { type: "radio", id: "ccr", on: true };
   }
-  if (/\b(left coast|70s radio|seventies)\b/i.test(text) && /\b(play|put on|radio)\b/i.test(text)) {
-    return { type: "radio", id: "seventies", on: true };
-  }
-  if (/\bboot liquor\b/i.test(text)) return { type: "radio", id: "bootliquor", on: true };
   if (/^(radio on|play radio|open radio|tuner)\b/i.test(text)) {
     return { type: "radio", on: true };
   }

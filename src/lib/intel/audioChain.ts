@@ -1,4 +1,4 @@
-/** Playback-path radio chain: larger buffer, tight low end, present mids, air. */
+/** Gentle playback chain. Presence without scooping the mix. */
 
 export type RadioChain = {
   ctx: AudioContext;
@@ -10,18 +10,7 @@ type WindowWithWebkit = Window & {
   webkitAudioContext?: typeof AudioContext;
 };
 
-function saturatorCurve(amount: number) {
-  const n = 4096;
-  const curve = new Float32Array(n);
-  const k = Math.max(0, amount);
-  for (let i = 0; i < n; i++) {
-    const x = (i * 2) / n - 1;
-    curve[i] = ((1 + k) * x) / (1 + k * Math.abs(x));
-  }
-  return curve;
-}
-
-export function createRadioChain(el: HTMLAudioElement): RadioChain | null {
+export async function attachRadioChain(el: HTMLAudioElement): Promise<RadioChain | null> {
   const Ctor =
     window.AudioContext || (window as WindowWithWebkit).webkitAudioContext;
   if (!Ctor) return null;
@@ -33,73 +22,74 @@ export function createRadioChain(el: HTMLAudioElement): RadioChain | null {
     return null;
   }
 
+  try {
+    await ctx.resume();
+  } catch {
+    try {
+      await ctx.close();
+    } catch {
+      /* ignore */
+    }
+    return null;
+  }
+  if (ctx.state !== "running") {
+    try {
+      await ctx.close();
+    } catch {
+      /* ignore */
+    }
+    return null;
+  }
+
   const src = ctx.createMediaElementSource(el);
 
   const rumble = ctx.createBiquadFilter();
   rumble.type = "highpass";
-  rumble.frequency.value = 48;
-  rumble.Q.value = 0.7;
-
-  const mud = ctx.createBiquadFilter();
-  mud.type = "lowshelf";
-  mud.frequency.value = 200;
-  mud.gain.value = -2.8;
+  rumble.frequency.value = 28;
+  rumble.Q.value = 0.5;
 
   const body = ctx.createBiquadFilter();
   body.type = "peaking";
-  body.frequency.value = 920;
+  body.frequency.value = 180;
   body.Q.value = 0.7;
-  body.gain.value = 1.3;
+  body.gain.value = 0.8;
 
   const bite = ctx.createBiquadFilter();
   bite.type = "peaking";
-  bite.frequency.value = 2650;
-  bite.Q.value = 1.05;
-  bite.gain.value = 2.8;
-
-  const presence = ctx.createBiquadFilter();
-  presence.type = "peaking";
-  presence.frequency.value = 4800;
-  presence.Q.value = 1.1;
-  presence.gain.value = 3.2;
+  bite.frequency.value = 3000;
+  bite.Q.value = 0.85;
+  bite.gain.value = 1.6;
 
   const air = ctx.createBiquadFilter();
   air.type = "highshelf";
-  air.frequency.value = 9000;
-  air.gain.value = 3.4;
-
-  const sat = ctx.createWaveShaper();
-  sat.curve = saturatorCurve(0.55);
-  sat.oversample = "4x";
+  air.frequency.value = 10000;
+  air.gain.value = 1.8;
 
   const glue = ctx.createDynamicsCompressor();
-  glue.threshold.value = -18;
-  glue.knee.value = 12;
-  glue.ratio.value = 2.4;
-  glue.attack.value = 0.008;
-  glue.release.value = 0.14;
+  glue.threshold.value = -22;
+  glue.knee.value = 18;
+  glue.ratio.value = 1.6;
+  glue.attack.value = 0.012;
+  glue.release.value = 0.22;
 
   const makeup = ctx.createGain();
-  makeup.gain.value = 1.18;
+  makeup.gain.value = 1.12;
 
   const limit = ctx.createDynamicsCompressor();
-  limit.threshold.value = -1.2;
-  limit.knee.value = 0.3;
-  limit.ratio.value = 20;
-  limit.attack.value = 0.002;
-  limit.release.value = 0.06;
+  limit.threshold.value = -1.5;
+  limit.knee.value = 2;
+  limit.ratio.value = 12;
+  limit.attack.value = 0.003;
+  limit.release.value = 0.1;
 
   const vol = ctx.createGain();
-  vol.gain.value = 0.72;
+  vol.gain.value = 0.78;
 
   src
     .connect(rumble)
-    .connect(mud)
     .connect(body)
     .connect(bite)
-    .connect(presence)
     .connect(air)
-    .connect(sat)
     .connect(glue)
     .connect(makeup)
     .connect(limit)

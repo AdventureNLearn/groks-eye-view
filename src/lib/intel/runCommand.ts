@@ -1,7 +1,7 @@
 import { parseCommand } from "./commands";
 import { playScene } from "./scenes";
 import { flash, useIntel } from "./store";
-import { useRadio } from "./radio";
+import { findStation, useRadio } from "./radio";
 import { interpretCommand } from "@/lib/feeds/world";
 import {
   LAYER_META,
@@ -82,7 +82,8 @@ export async function applyAction(action: CommandAction, raw = "") {
     } else {
       useRadio.getState().play(action.id);
       const id = action.id ?? useRadio.getState().stationId;
-      flash(id === "ccr" ? "Creedence on the wire" : "Radio on");
+      const st = findStation(id, useRadio.getState().custom);
+      flash(st ? `${st.name} on the wire` : "Radio on");
     }
     return;
   }

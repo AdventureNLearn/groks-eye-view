@@ -73,6 +73,7 @@ export function OverlayHud() {
   const radioPlaying = useRadio((s) => s.playing);
   const radioId = useRadio((s) => s.stationId);
   const radioCustom = useRadio((s) => s.custom);
+  const radioNow = useRadio((s) => s.nowPlaying);
   const radioStation = findStation(radioId, radioCustom) ?? PRESET_STATIONS[0];
   const inputRef = useRef<HTMLInputElement>(null);
   const [zulu, setZulu] = useState("");
@@ -232,7 +233,7 @@ export function OverlayHud() {
               <button
                 type="button"
                 data-on={radioOpen ? "true" : "false"}
-                className="flex min-h-11 max-w-36 items-center gap-1.5 rounded-sm px-2"
+                className="flex min-h-11 max-w-44 items-center gap-1.5 rounded-sm px-2 md:max-w-56"
                 title="Radio stations (R)"
                 aria-label="Open radio stations"
                 onClick={() => {
@@ -246,7 +247,9 @@ export function OverlayHud() {
                 }}
               >
                 <Radio className="size-4 shrink-0" strokeWidth={1.75} />
-                <span className="hidden truncate text-xs sm:inline">{radioStation.name}</span>
+                <span className="hidden min-w-0 truncate text-xs sm:inline">
+                  {radioPlaying && radioNow ? radioNow : radioStation.name}
+                </span>
                 {radioPlaying && <span className="live-dot shrink-0" data-state="live" />}
               </button>
               <button

@@ -1,8 +1,9 @@
 import { useEffect, useRef, useState } from "react";
 import { Pause, Play, Plus, Radio, Trash2, X } from "lucide-react";
-import { searchRadioStations } from "@/lib/feeds/radio";
-import { createRadioChain, type RadioChain } from "@/lib/intel/audioChain";
+import { readNowPlaying, searchRadioStations } from "@/lib/feeds/radio";
+import { attachRadioChain, type RadioChain } from "@/lib/intel/audioChain";
 import {
+  PRESET_GROUPS,
   PRESET_STATIONS,
   findStation,
   stationPlayUrls,
@@ -26,18 +27,25 @@ export function RadioDeck() {
   const suppressError = useRef(0);
   const station = findStation(stationId, custom) ?? PRESET_STATIONS[0];
 
-  function ensureChain() {
+  async function ensureChain() {
     const el = audioRef.current;
     if (!el) return;
-    if (!chainRef.current) {
-      chainRef.current = createRadioChain(el);
-      chainRef.current?.setVolume(useRadio.getState().volume);
+    if (chainRef.current) {
+      await chainRef.current.resume();
+      chainRef.current.setVolume(useRadio.getState().volume);
+      return;
     }
-    void chainRef.current?.resume();
+    const chain = await attachRadioChain(el);
+    if (chain) {
+      chainRef.current = chain;
+      chain.setVolume(useRadio.getState().volume);
+    } else if (el) {
+      el.volume = useRadio.getState().volume;
+    }
   }
 
   function tune(audio: HTMLAudioElement, url: string) {
-    suppressError.current = Date.now() + 1200;
+    suppressError.current = Date.now() + 2500;
     audio.src = url;
     audio.preload = "auto";
     audio.load();
@@ -61,14 +69,16 @@ export function RadioDeck() {
 
   useEffect(() => {
     useRadio.getState().hydrate();
-    const prime = () => ensureChain();
+    const prime = () => {
+      void ensureChain();
+    };
     window.addEventListener("pointerdown", prime, { once: true });
     return () => window.removeEventListener("pointerdown", prime);
   }, []);
 
   useEffect(() => {
     if (chainRef.current) chainRef.current.setVolume(volume);
-    else if (audioRef.current) audioRef.current.volume = volume;
+    else if (audioRef.current && !chainRef.current) audioRef.current.volume = volume;
   }, [volume]);
 
   useEffect(() => {
@@ -78,7 +88,6 @@ export function RadioDeck() {
       audio.pause();
       return;
     }
-    ensureChain();
     const urls = stationPlayUrls(station);
     const key = `${station.id}:${station.url}`;
     if (lastKey.current !== key) {
@@ -87,6 +96,36 @@ export function RadioDeck() {
       tune(audio, urls[0]);
     }
     playOrAdvance(audio, urls);
+    const onPlaying = () => {
+      useRadio.getState().setBuffering(false);
+      void ensureChain();
+    };
+    audio.addEventListener("playing", onPlaying);
+    return () => audio.removeEventListener("playing", onPlaying);
+  }, [playing, station?.id, station?.url]);
+
+  useEffect(() => {
+    if (!playing || !station) {
+      useRadio.getState().setNowPlaying("");
+      return;
+    }
+    let cancelled = false;
+    const pull = async () => {
+      try {
+        const urls = stationPlayUrls(station);
+        const url = urls[urlIndex.current] ?? station.url;
+        const res = await readNowPlaying({ data: { url } });
+        if (!cancelled && res.title) useRadio.getState().setNowPlaying(res.title);
+      } catch {
+        /* metadata is bonus */
+      }
+    };
+    void pull();
+    const id = window.setInterval(pull, 12000);
+    return () => {
+      cancelled = true;
+      window.clearInterval(id);
+    };
   }, [playing, station?.id, station?.url]);
 
   return (
@@ -95,9 +134,8 @@ export function RadioDeck() {
         ref={audioRef}
         preload="auto"
         playsInline
-        onWaiting={() => {
-          /* keep playing state; Icecast will refill */
-        }}
+        onWaiting={() => useRadio.getState().setBuffering(true)}
+        onPlaying={() => useRadio.getState().setBuffering(false)}
         onStalled={() => {
           const audio = audioRef.current;
           if (!audio || !useRadio.getState().playing) return;
@@ -105,6 +143,7 @@ export function RadioDeck() {
           if (audio.readyState >= 2) return;
           const urls = station ? stationPlayUrls(station) : [];
           if (!urls.length) return;
+          useRadio.getState().setBuffering(true);
           tune(audio, urls[urlIndex.current] ?? urls[0]);
           playOrAdvance(audio, urls);
         }}
@@ -140,6 +179,8 @@ function RadioPicker({
 }) {
   const playing = useRadio((s) => s.playing);
   const volume = useRadio((s) => s.volume);
+  const buffering = useRadio((s) => s.buffering);
+  const nowPlaying = useRadio((s) => s.nowPlaying);
   const [name, setName] = useState("");
   const [url, setUrl] = useState("");
   const [query, setQuery] = useState("");
@@ -181,7 +222,8 @@ function RadioPicker({
     }
     setName("");
     setUrl("");
-    flash("Station added. Hit play.");
+    flash("Station added. Hitting play.");
+    useRadio.getState().play(useRadio.getState().stationId);
   }
 
   function addHit(hit: RadioSearchHit) {
@@ -198,6 +240,11 @@ function RadioPicker({
       useRadio.getState().play(useRadio.getState().stationId);
     }
   }
+
+  const subtitle =
+    error ||
+    (buffering ? "Tuning…" : nowPlaying) ||
+    [station.quality, station.blurb].filter(Boolean).join(" · ");
 
   return (
     <aside
@@ -234,9 +281,7 @@ function RadioPicker({
         </button>
         <div className="min-w-0 flex-1">
           <p className="truncate font-display text-base font-semibold tracking-wide">{station.name}</p>
-          <p className="truncate text-xs text-muted">
-            {error || [station.quality, station.blurb].filter(Boolean).join(" · ")}
-          </p>
+          <p className="truncate text-xs text-muted">{subtitle}</p>
         </div>
         <label className="flex w-24 flex-col gap-1">
           <span className="kicker">Vol</span>
@@ -252,17 +297,25 @@ function RadioPicker({
         </label>
       </div>
 
-      <p className="kicker mb-1">Presets</p>
-      <ul className="grid gap-1">
-        {PRESET_STATIONS.map((s) => (
-          <StationRow key={s.id} station={s} active={s.id === station.id} />
-        ))}
-      </ul>
+      {PRESET_GROUPS.map((g) => {
+        const rows = PRESET_STATIONS.filter((s) => s.group === g.id);
+        if (!rows.length) return null;
+        return (
+          <div key={g.id} className="mb-3">
+            <p className="kicker mb-1">{g.label}</p>
+            <ul className="grid gap-1">
+              {rows.map((s) => (
+                <StationRow key={s.id} station={s} active={s.id === station.id} />
+              ))}
+            </ul>
+          </div>
+        );
+      })}
 
       {custom.length > 0 && (
         <>
-          <p className="kicker mt-3 mb-1">Your rack</p>
-          <ul className="grid gap-1">
+          <p className="kicker mt-1 mb-1">Your rack</p>
+          <ul className="mb-3 grid gap-1">
             {custom.map((s) => (
               <StationRow key={s.id} station={s} active={s.id === station.id} removable />
             ))}
@@ -270,7 +323,7 @@ function RadioPicker({
         </>
       )}
 
-      <p className="kicker mt-3 mb-1">Find a station</p>
+      <p className="kicker mb-1">Find a station</p>
       <form onSubmit={onSearch} className="flex gap-1">
         <input
           value={query}
@@ -310,34 +363,34 @@ function RadioPicker({
       <details className="mt-3">
         <summary className="kicker cursor-pointer py-2">Or paste a stream</summary>
         <form onSubmit={addCustom} className="mt-1 grid gap-1">
-        <input
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-          placeholder="Name"
-          className="min-h-11 rounded-sm bg-panel-2 px-3 text-sm text-fg outline-none placeholder:text-subtle"
-          maxLength={48}
-          aria-label="Station name"
-        />
-        <input
-          value={url}
-          onChange={(e) => setUrl(e.target.value)}
-          placeholder="https://… mp3 or aac stream"
-          className="min-h-11 rounded-sm bg-panel-2 px-3 text-sm text-fg outline-none placeholder:text-subtle"
-          maxLength={500}
-          aria-label="Stream URL"
-        />
-        <button
-          type="submit"
-          className="flex min-h-11 items-center justify-center gap-2 rounded-sm bg-panel-2 text-sm text-fg"
-        >
-          <Plus className="size-4" strokeWidth={1.75} />
-          Add to rack
-        </button>
-      </form>
+          <input
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            placeholder="Name"
+            className="min-h-11 rounded-sm bg-panel-2 px-3 text-sm text-fg outline-none placeholder:text-subtle"
+            maxLength={48}
+            aria-label="Station name"
+          />
+          <input
+            value={url}
+            onChange={(e) => setUrl(e.target.value)}
+            placeholder="https://… mp3 or aac stream"
+            className="min-h-11 rounded-sm bg-panel-2 px-3 text-sm text-fg outline-none placeholder:text-subtle"
+            maxLength={500}
+            aria-label="Stream URL"
+          />
+          <button
+            type="submit"
+            className="flex min-h-11 items-center justify-center gap-2 rounded-sm bg-panel-2 text-sm text-fg"
+          >
+            <Plus className="size-4" strokeWidth={1.75} />
+            Add to rack
+          </button>
+        </form>
       </details>
 
       <p className="mt-3 text-xs leading-snug text-subtle">
-        Streams come from the stations, not us. CCR:{" "}
+        Streams come from the stations, not us. Artist channels:{" "}
         <a
           href="https://exclusive.radio/"
           target="_blank"
@@ -346,7 +399,7 @@ function RadioPicker({
         >
           Exclusive Radio
         </a>
-        . 70s:{" "}
+        . Mixes:{" "}
         <a
           href="https://somafm.com/"
           target="_blank"
@@ -376,16 +429,13 @@ function StationRow({
       <button
         type="button"
         onClick={() => useRadio.getState().play(station.id)}
-        className={`flex min-h-11 min-w-0 flex-1 items-center gap-2 rounded-sm px-2 text-left ${
+        className={`flex min-h-10 min-w-0 flex-1 items-center gap-2 rounded-sm px-2 text-left ${
           active ? "bg-accent-dim" : "bg-panel-2 hover:text-fg"
         }`}
       >
         <span className="live-dot" data-state={active && playing ? "live" : "off"} />
         <span className="min-w-0 flex-1">
           <span className="block truncate text-sm">{station.name}</span>
-          <span className="block truncate text-xs text-subtle">
-            {[station.quality, station.blurb].filter(Boolean).join(" · ")}
-          </span>
         </span>
       </button>
       {removable && (
