@@ -187,8 +187,25 @@
 }
 
 .layer-rail {
-  width: min(52vw, 240px);
-  max-height: 56vh;
+  width: min(72vw, 260px);
+  max-height: min(70vh, 32rem);
+}
+
+.hud-toolbar {
+  padding: 4px;
+  gap: 2px;
+}
+
+.hud-toolbar > button {
+  border-radius: var(--radius-sm);
+}
+
+.hud-toolbar > button:hover {
+  background: var(--color-panel-2);
+}
+
+.hud-toolbar > button[data-on="true"] {
+  background: var(--color-accent-dim);
 }
 
 .comms-panel,
@@ -197,7 +214,7 @@
 }
 
 .comms-panel {
-  max-height: min(72vh, 42rem);
+  max-height: min(70vh, 36rem);
 }
 
 .comms-log {
@@ -206,12 +223,12 @@
 }
 
 .radio-panel {
-  max-height: min(62vh, 34rem);
+  max-height: min(58vh, 28rem);
 }
 
 @media (min-width: 768px) {
   .radio-panel {
-    max-height: min(56vh, 30rem);
+    width: 22rem;
   }
 }
 

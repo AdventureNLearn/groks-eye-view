@@ -4,7 +4,9 @@ import {
   Globe,
   Layers,
   MessageSquare,
+  Pause,
   Plane,
+  Play,
   Radio,
   Search,
   Send,
@@ -15,13 +17,12 @@ import { CommsChat } from "./CommsChat";
 import { FirstRun } from "./FirstRun";
 import { RadioDeck } from "./RadioDeck";
 import { formatAltFt, formatKts, formatLatLon, zuluNow } from "@/lib/intel/geo";
-import { PRESETS } from "@/lib/intel/locations";
 import { runCommand } from "@/lib/intel/runCommand";
 import { playScene } from "@/lib/intel/scenes";
 import { copyShareUrl } from "@/lib/intel/share";
 import { flash, hydrateFirstRun, useIntel } from "@/lib/intel/store";
 import { useComms } from "@/lib/intel/comms";
-import { useRadio } from "@/lib/intel/radio";
+import { findStation, PRESET_STATIONS, useRadio } from "@/lib/intel/radio";
 import { getWeather } from "@/lib/feeds/world";
 import {
   LAYER_META,
@@ -70,10 +71,12 @@ export function OverlayHud() {
   const chatOpen = useComms((s) => s.open);
   const radioOpen = useRadio((s) => s.picker);
   const radioPlaying = useRadio((s) => s.playing);
-  const hideChrome = chatOpen || radioOpen;
+  const radioId = useRadio((s) => s.stationId);
+  const radioCustom = useRadio((s) => s.custom);
+  const radioStation = findStation(radioId, radioCustom) ?? PRESET_STATIONS[0];
   const inputRef = useRef<HTMLInputElement>(null);
   const [zulu, setZulu] = useState("");
-  const [mobileLayers, setMobileLayers] = useState(false);
+  const [drawerOpen, setDrawerOpen] = useState(false);
 
   useEffect(() => {
     hydrateFirstRun();
@@ -99,7 +102,7 @@ export function OverlayHud() {
         if (useIntel.getState().firstRun) useIntel.getState().dismissFirstRun(false);
         else if (useIntel.getState().cockpit) engine?.enterCockpit(false);
         else if (useIntel.getState().tracked) engine?.track(null);
-        else setMobileLayers(false);
+        else setDrawerOpen(false);
         return;
       }
       if (typing) return;
@@ -111,13 +114,25 @@ export function OverlayHud() {
       if ((e.key === "g" || e.key === "G") && !useIntel.getState().firstRun) {
         const next = !useComms.getState().open;
         useComms.getState().setOpen(next);
-        if (next) useRadio.getState().setPicker(false);
+        if (next) {
+          useRadio.getState().setPicker(false);
+          setDrawerOpen(false);
+        }
         return;
       }
       if ((e.key === "r" || e.key === "R") && !useIntel.getState().firstRun) {
         const next = !useRadio.getState().picker;
         useRadio.getState().setPicker(next);
-        if (next) useComms.getState().setOpen(false);
+        if (next) {
+          useComms.getState().setOpen(false);
+          setDrawerOpen(false);
+        }
+        return;
+      }
+      if (e.key === "l" || e.key === "L") {
+        setDrawerOpen((v) => !v);
+        useComms.getState().setOpen(false);
+        useRadio.getState().setPicker(false);
         return;
       }
       const styleHit = STYLE_META.find((s) => s.key === e.key);
@@ -186,62 +201,91 @@ export function OverlayHud() {
 
       {hud && !clean && (
         <>
-          <header className="intel-pass absolute top-3 left-3 right-3 flex items-start justify-between gap-3 md:top-4 md:left-4 md:right-4">
+          <header className="absolute top-3 left-3 right-3 z-30 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between md:top-4 md:left-4 md:right-4">
             <div className="pointer-events-none min-w-0">
-              <p className="kicker">The sky is not a privacy policy</p>
-              <h1 className="font-display text-3xl leading-none font-semibold tracking-wide">
+              <h1 className="font-display truncate text-xl leading-none font-semibold tracking-wide md:text-2xl">
                 <span className="text-accent">GROK'S</span> EYE VIEW
               </h1>
               <p className="hud-num mt-1 truncate text-xs text-muted">
-                {zulu} · {place} · {liveCount} contacts
+                {zulu} · {place} · {liveCount}
               </p>
             </div>
-            <div className="pointer-events-auto flex items-center gap-2">
-              <div className="panel hidden px-3 py-2 sm:block">
-                <p className="kicker">Vibe</p>
-                <p className="hud-num text-sm text-accent">{style.toUpperCase()}</p>
-              </div>
+            <div className="hud-toolbar panel pointer-events-auto flex w-fit shrink-0 items-center self-end sm:self-auto">
               <button
                 type="button"
-                className="panel grid size-11 place-items-center md:hidden"
-                title="Layers"
-                aria-label="Toggle layers"
-                onClick={() => setMobileLayers((v) => !v)}
-              >
-                <Layers className="size-4" strokeWidth={1.75} />
-              </button>
-              <button
-                type="button"
-                className="panel grid size-11 place-items-center"
-                title="Grok comms (G)"
-                aria-label="Toggle Grok comms"
+                className={`grid size-11 place-items-center rounded-sm ${
+                  radioPlaying ? "bg-accent text-accent-fg" : ""
+                }`}
+                title={radioPlaying ? "Pause radio" : "Play radio"}
+                aria-label={radioPlaying ? "Pause radio" : "Play radio"}
                 onClick={() => {
-                  const next = !useComms.getState().open;
-                  useComms.getState().setOpen(next);
-                  if (next) useRadio.getState().setPicker(false);
+                  if (useIntel.getState().firstRun) useIntel.getState().dismissFirstRun(false);
+                  useRadio.getState().toggle();
                 }}
               >
-                <MessageSquare className="size-4" strokeWidth={1.75} />
-              </button>
-              <button
-                type="button"
-                className="panel relative grid size-11 place-items-center"
-                title="Radio tuner (R)"
-                aria-label="Toggle radio"
-                onClick={() => {
-                  const next = !useRadio.getState().picker;
-                  useRadio.getState().setPicker(next);
-                  if (next) useComms.getState().setOpen(false);
-                }}
-              >
-                <Radio className="size-4" strokeWidth={1.75} />
-                {radioPlaying && (
-                  <span className="live-dot absolute top-1.5 right-1.5" data-state="live" />
+                {radioPlaying ? (
+                  <Pause className="size-4" strokeWidth={1.75} />
+                ) : (
+                  <Play className="size-4" strokeWidth={1.75} />
                 )}
               </button>
               <button
                 type="button"
-                className="panel grid size-11 place-items-center"
+                data-on={radioOpen ? "true" : "false"}
+                className="flex min-h-11 max-w-36 items-center gap-1.5 rounded-sm px-2"
+                title="Radio stations (R)"
+                aria-label="Open radio stations"
+                onClick={() => {
+                  if (useIntel.getState().firstRun) useIntel.getState().dismissFirstRun(false);
+                  const next = !useRadio.getState().picker;
+                  useRadio.getState().setPicker(next);
+                  if (next) {
+                    useComms.getState().setOpen(false);
+                    setDrawerOpen(false);
+                  }
+                }}
+              >
+                <Radio className="size-4 shrink-0" strokeWidth={1.75} />
+                <span className="hidden truncate text-xs sm:inline">{radioStation.name}</span>
+                {radioPlaying && <span className="live-dot shrink-0" data-state="live" />}
+              </button>
+              <button
+                type="button"
+                data-on={chatOpen ? "true" : "false"}
+                className="flex min-h-11 items-center gap-1.5 rounded-sm px-2"
+                title="Grok comms (G)"
+                aria-label="Toggle Grok comms"
+                onClick={() => {
+                  if (useIntel.getState().firstRun) useIntel.getState().dismissFirstRun(false);
+                  const next = !useComms.getState().open;
+                  useComms.getState().setOpen(next);
+                  if (next) {
+                    useRadio.getState().setPicker(false);
+                    setDrawerOpen(false);
+                  }
+                }}
+              >
+                <MessageSquare className="size-4" strokeWidth={1.75} />
+                <span className="hidden text-xs md:inline">Comms</span>
+              </button>
+              <button
+                type="button"
+                data-on={drawerOpen ? "true" : "false"}
+                className="flex min-h-11 items-center gap-1.5 rounded-sm px-2"
+                title="Layers (L)"
+                aria-label="Toggle layers"
+                onClick={() => {
+                  setDrawerOpen((v) => !v);
+                  useComms.getState().setOpen(false);
+                  useRadio.getState().setPicker(false);
+                }}
+              >
+                <Layers className="size-4" strokeWidth={1.75} />
+                <span className="hidden text-xs md:inline">Layers</span>
+              </button>
+              <button
+                type="button"
+                className="hidden size-11 place-items-center rounded-sm sm:grid"
                 title="Copy share link"
                 aria-label="Share view"
                 onClick={async () => {
@@ -253,7 +297,7 @@ export function OverlayHud() {
               </button>
               <button
                 type="button"
-                className="panel grid size-11 place-items-center"
+                className="hidden size-11 place-items-center rounded-sm sm:grid"
                 title="Reset globe"
                 aria-label="Reset globe"
                 onClick={() => engine?.resetGlobe()}
@@ -263,11 +307,8 @@ export function OverlayHud() {
             </div>
           </header>
 
-          <section
-            className={`panel layer-rail absolute top-24 left-3 z-10 overflow-y-auto p-3 md:top-28 md:left-4 ${
-              hideChrome ? "hidden" : mobileLayers ? "" : "hidden md:block"
-            }`}
-          >
+          {drawerOpen && !chatOpen && !radioOpen && (
+          <section className="panel layer-rail absolute top-32 left-3 z-20 overflow-y-auto p-3 sm:top-16 md:top-20 md:left-4">
             <div className="mb-2 flex items-center justify-between">
               <span className="kicker flex items-center gap-2">
                 <Layers className="size-3" /> Open sources
@@ -304,21 +345,8 @@ export function OverlayHud() {
                 );
               })}
             </ul>
-          </section>
-
-          <aside
-            className={`panel absolute top-24 right-3 hidden w-56 p-3 md:top-28 md:right-4 ${
-              hideChrome ? "md:hidden" : "md:block"
-            }`}
-          >
-            <p className="kicker">Display</p>
-            <div className="mt-2 grid grid-cols-2 gap-1">
-              <Toggle
-                label="HUD"
-                hotkey="H"
-                on={hud}
-                onClick={() => useIntel.getState().setHud(!hud)}
-              />
+            <p className="kicker mt-3">Display</p>
+            <div className="mt-1 grid grid-cols-2 gap-1">
               <Toggle
                 label="Detect"
                 hotkey="D"
@@ -351,14 +379,14 @@ export function OverlayHud() {
                 />
               </label>
             )}
-            <p className="kicker mt-3">Map source</p>
+            <p className="kicker mt-3">Map</p>
             <div className="mt-1 flex flex-wrap gap-1">
               {MAPS.map((m) => (
                 <button
                   key={m.id}
                   type="button"
                   onClick={() => engine?.setMapSource(m.id)}
-                  className={`rounded-sm px-2 py-1 text-xs ${
+                  className={`min-h-9 rounded-sm px-2 text-xs ${
                     mapSource === m.id ? "bg-accent text-accent-fg" : "bg-panel-2 text-muted"
                   }`}
                 >
@@ -373,16 +401,38 @@ export function OverlayHud() {
                   key={sc.id}
                   type="button"
                   onClick={() => void playScene(sc.id)}
-                  className="rounded-sm bg-panel-2 px-2 py-2 text-left text-xs text-muted hover:text-fg"
+                  className="min-h-10 rounded-sm bg-panel-2 px-2 text-left text-xs text-muted hover:text-fg"
                 >
                   {sc.label}
                 </button>
               ))}
             </div>
-          </aside>
+            <div className="mt-3 flex gap-1 sm:hidden">
+              <button
+                type="button"
+                className="flex min-h-11 flex-1 items-center justify-center gap-2 rounded-sm bg-panel-2 text-xs"
+                onClick={async () => {
+                  const ok = await copyShareUrl();
+                  flash(ok ? "Copied. Send it to the group chat." : "Share link ready");
+                }}
+              >
+                <Share2 className="size-4" strokeWidth={1.75} />
+                Share
+              </button>
+              <button
+                type="button"
+                className="flex min-h-11 flex-1 items-center justify-center gap-2 rounded-sm bg-panel-2 text-xs"
+                onClick={() => engine?.resetGlobe()}
+              >
+                <Globe className="size-4" strokeWidth={1.75} />
+                Reset
+              </button>
+            </div>
+          </section>
+          )}
 
-          {tracked && !hideChrome && (
-            <article className="panel absolute right-3 bottom-36 left-3 z-10 p-3 md:top-auto md:right-4 md:bottom-28 md:left-auto md:w-72">
+          {tracked && !chatOpen && !radioOpen && (
+            <article className="panel absolute bottom-28 left-3 z-10 p-3 md:left-4 md:w-72">
               <div className="flex items-start justify-between gap-2">
                 <div className="min-w-0">
                   <p className="kicker">{tracked.kind}</p>
@@ -476,23 +526,9 @@ export function OverlayHud() {
         </div>
       )}
 
-      {!clean && !hideChrome && (
+      {!clean && !chatOpen && (
         <footer className="absolute right-3 bottom-3 left-3 z-10 md:right-4 md:bottom-4 md:left-4">
-          <div className="mx-auto flex max-w-4xl flex-col gap-2">
-            <div className="flex flex-wrap gap-1">
-              {PRESETS.filter((p) => p.id !== "globe")
-                .slice(0, 8)
-                .map((p) => (
-                  <button
-                    key={p.id}
-                    type="button"
-                    onClick={() => void engine?.lookupPlace(p.name)}
-                    className="panel min-h-9 px-2.5 text-xs text-muted hover:text-fg"
-                  >
-                    {p.name}
-                  </button>
-                ))}
-            </div>
+          <div className="mx-auto max-w-3xl">
             <div className="panel flex flex-col gap-2 p-2 md:flex-row md:items-center">
               <div className="flex gap-1 overflow-x-auto">
                 {STYLE_META.map((s) => (
@@ -529,9 +565,16 @@ export function OverlayHud() {
                 </button>
               </form>
             </div>
-            <p className="hud-num px-1 text-xs text-subtle">
-              {formatLatLon(cam.lat, cam.lon)} · {formatAltFt(cam.height)} AGL · drag to orbit ·
-              scroll to zoom · click a contact · 1–6 styles · D detect · G comms · R radio
+            <p className="hud-num mt-1 px-1 text-xs text-subtle">
+              {formatLatLon(cam.lat, cam.lon)} · {formatAltFt(cam.height)} · inspired by{" "}
+              <a
+                href="https://github.com/bilawalsidhu/gods-eye-view"
+                target="_blank"
+                rel="noreferrer"
+                className="underline decoration-line underline-offset-2 hover:text-fg"
+              >
+                Bilawal Sidhu
+              </a>
             </p>
           </div>
         </footer>
@@ -548,7 +591,7 @@ export function OverlayHud() {
       )}
 
       {toast && (
-        <div className="panel absolute top-4 left-1/2 z-20 -translate-x-1/2 px-3 py-2 text-sm">
+        <div className="panel absolute top-16 left-1/2 z-30 -translate-x-1/2 px-3 py-2 text-sm">
           {toast}
         </div>
       )}
@@ -562,20 +605,6 @@ export function OverlayHud() {
         <div className="pointer-events-none absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-accent/40">
           <Crosshair className="size-8" strokeWidth={1.25} />
         </div>
-      )}
-
-      {!hideChrome && (
-      <p className="pointer-events-auto absolute bottom-2 left-3 z-10 max-w-[min(92vw,32rem)] text-xs text-subtle">
-        Public data · not for navigation · Grok’s Eye View, inspired by{" "}
-        <a
-          href="https://github.com/bilawalsidhu/gods-eye-view"
-          target="_blank"
-          rel="noreferrer"
-          className="underline decoration-line underline-offset-2 hover:text-fg"
-        >
-          Bilawal Sidhu’s God’s Eye View
-        </a>
-      </p>
       )}
     </div>
   );

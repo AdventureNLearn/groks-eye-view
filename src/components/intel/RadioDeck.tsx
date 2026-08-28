@@ -138,7 +138,7 @@ function RadioPicker({
 
   return (
     <aside
-      className="panel radio-panel absolute inset-x-3 bottom-4 z-20 overflow-y-auto p-3 md:inset-x-auto md:bottom-8 md:left-1/2 md:w-[26rem] md:-translate-x-1/2"
+      className="panel radio-panel absolute top-32 right-3 left-3 z-20 overflow-y-auto p-3 sm:top-16 sm:left-auto md:top-20 md:right-4"
       role="dialog"
       aria-label="Radio tuner"
     >
@@ -242,8 +242,9 @@ function RadioPicker({
         </ul>
       )}
 
-      <p className="kicker mt-3 mb-1">Or paste a stream</p>
-      <form onSubmit={addCustom} className="grid gap-1">
+      <details className="mt-3">
+        <summary className="kicker cursor-pointer py-2">Or paste a stream</summary>
+        <form onSubmit={addCustom} className="mt-1 grid gap-1">
         <input
           value={name}
           onChange={(e) => setName(e.target.value)}
@@ -268,6 +269,7 @@ function RadioPicker({
           Add to rack
         </button>
       </form>
+      </details>
 
       <p className="mt-3 text-xs leading-snug text-subtle">
         Streams come from the stations, not us. CCR:{" "}

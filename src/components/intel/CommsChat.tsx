@@ -30,7 +30,7 @@ export function CommsChat() {
 
   return (
     <aside
-      className="panel comms-panel absolute inset-x-3 top-20 bottom-24 z-20 flex flex-col p-3 md:inset-x-auto md:top-24 md:right-4 md:bottom-28 md:w-[22rem]"
+      className="panel comms-panel absolute inset-x-3 top-32 bottom-24 z-20 flex flex-col p-3 sm:top-16 md:inset-x-auto md:top-20 md:right-4 md:bottom-24 md:w-[22rem]"
       role="dialog"
       aria-label="Grok comms"
     >
