@@ -89,10 +89,10 @@ function fromAdsb(ac: AdsbAc, military: boolean): FlightSample | null {
   };
 }
 
-async function openskyAuthHeader(): Promise<Record<string, string>> {
-  const id = process.env.OPENSKY_CLIENT_ID?.trim();
-  const secret = process.env.OPENSKY_CLIENT_SECRET?.trim();
-  if (!id || !secret) return {};
+async function openskyAuthHeader(id?: string, secret?: string): Promise<Record<string, string>> {
+  const clientId = (id || process.env.OPENSKY_CLIENT_ID || "").trim();
+  const clientSecret = (secret || process.env.OPENSKY_CLIENT_SECRET || "").trim();
+  if (!clientId || !clientSecret) return {};
   if (skyToken && Date.now() < skyToken.exp - 20_000) {
     return { Authorization: `Bearer ${skyToken.value}` };
   }
@@ -103,8 +103,8 @@ async function openskyAuthHeader(): Promise<Record<string, string>> {
       headers: { "Content-Type": "application/x-www-form-urlencoded" },
       body: new URLSearchParams({
         grant_type: "client_credentials",
-        client_id: id,
-        client_secret: secret,
+        client_id: clientId,
+        client_secret: clientSecret,
       }),
     },
   );
@@ -118,8 +118,8 @@ async function openskyAuthHeader(): Promise<Record<string, string>> {
   return { Authorization: `Bearer ${skyToken.value}` };
 }
 
-async function pullOpenSky(): Promise<FlightSample[]> {
-  const headers = await openskyAuthHeader().catch(() => ({} as Record<string, string>));
+async function pullOpenSky(id?: string, secret?: string): Promise<FlightSample[]> {
+  const headers = await openskyAuthHeader(id, secret).catch(() => ({} as Record<string, string>));
   const data = await fetchJson<OpenSky>("https://opensky-network.org/api/states/all", {
     timeoutMs: 9_000,
     headers,
@@ -199,14 +199,20 @@ function capFlights(flights: FlightSample[]): FlightSample[] {
   return sampled;
 }
 
-export const getFlights = createServerFn({ method: "GET" }).handler(async () => {
-  return cached("flights", 16_000, async () => {
+export const getFlights = createServerFn({ method: "POST" })
+  .validator((input: { openskyId?: string; openskySecret?: string } | undefined) => ({
+    openskyId: String(input?.openskyId ?? "").slice(0, 120),
+    openskySecret: String(input?.openskySecret ?? "").slice(0, 200),
+  }))
+  .handler(async ({ data }) => {
+  const signed = Boolean(data.openskyId && data.openskySecret);
+  return cached(signed ? `flights:${data.openskyId}` : "flights", 16_000, async () => {
     try {
-      const flights = capFlights(await pullOpenSky());
+      const flights = capFlights(await pullOpenSky(data.openskyId, data.openskySecret));
       if (flights.length > 20) {
         return {
           flights,
-          source: process.env.OPENSKY_CLIENT_ID ? "OpenSky (signed in)" : "OpenSky Network",
+          source: signed || process.env.OPENSKY_CLIENT_ID ? "OpenSky (signed in)" : "OpenSky Network",
           at: Date.now(),
           freshness: "live" as const,
         };
@@ -254,12 +260,4 @@ export const getMilitary = createServerFn({ method: "GET" }).handler(async () =>
     freshness: "error" as const,
     error: err instanceof Error ? err.message : "Military feed failed",
   }));
-});
-
-export const getFeedKeys = createServerFn({ method: "GET" }).handler(async () => {
-  return {
-    opensky: Boolean(process.env.OPENSKY_CLIENT_ID?.trim() && process.env.OPENSKY_CLIENT_SECRET?.trim()),
-    ais: Boolean(process.env.AISSTREAM_API_KEY?.trim()),
-    firms: Boolean(process.env.NASA_FIRMS_KEY?.trim()),
-  };
 });

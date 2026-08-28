@@ -3,6 +3,7 @@ import { getFlights, getMilitary } from "@/lib/feeds/flights";
 import { getVessels } from "@/lib/feeds/ais";
 import { json2satrec, propagate, gstime, eciToGeodetic, degreesLat, degreesLong } from "satellite.js";
 import { flash, useIntel } from "./store";
+import { feedAuth } from "./feedKeys";
 import { matchPreset } from "./locations";
 import { readShareHash } from "./share";
 import { simulatedFlights } from "./simFlights";
@@ -421,7 +422,7 @@ export async function bootFlatMap(container: HTMLDivElement): Promise<() => void
       let freshness: "live" | "delayed" | "simulated" | "error" = "simulated";
       let detail = "Simulated corridors";
       try {
-        const data = await getFlights();
+        const data = await getFlights({ data: feedAuth() });
         live = data.flights ?? [];
         if (live.length) {
           freshness = data.freshness === "error" ? "simulated" : data.freshness;
@@ -485,7 +486,7 @@ export async function bootFlatMap(container: HTMLDivElement): Promise<() => void
       let freshness: "live" | "simulated" = "simulated";
       let detail = LAYER_META.vessels.source;
       try {
-        const data = await getVessels();
+        const data = await getVessels({ data: feedAuth() });
         if (data.vessels.length) {
           rows = data.vessels;
           freshness = data.freshness;
@@ -545,7 +546,7 @@ export async function bootFlatMap(container: HTMLDivElement): Promise<() => void
 
     if (layers.fires.on) {
       try {
-        const data = await getFires();
+        const data = await getFires({ data: feedAuth() });
         const rows = (data.items ?? []).slice(0, 80);
         for (const f of rows) {
           next.push({

@@ -13,6 +13,7 @@ const cache: Snapshot = {
 
 let socket: WebSocket | null = null;
 let started = false;
+let usedKey = "";
 
 function asContact(mmsi: string, lat: number, lon: number, heading: number, name: string, sog: number): Contact {
   return {
@@ -31,10 +32,17 @@ function asContact(mmsi: string, lat: number, lon: number, heading: number, name
   };
 }
 
-function startAis(): void {
-  const key = process.env.AISSTREAM_API_KEY?.trim();
-  if (!key || started) return;
+function startAis(userKey?: string): void {
+  const key = (userKey || process.env.AISSTREAM_API_KEY || "").trim();
+  if (!key) return;
+  if (started && usedKey === key && socket) return;
+  try {
+    socket?.close();
+  } catch {
+    /* ignore */
+  }
   started = true;
+  usedKey = key;
   const live = new Map<string, Contact>();
 
   const connect = () => {
@@ -113,8 +121,12 @@ function startAis(): void {
   connect();
 }
 
-export const getVessels = createServerFn({ method: "GET" }).handler(async () => {
-  startAis();
+export const getVessels = createServerFn({ method: "POST" })
+  .validator((input: { aisKey?: string } | undefined) => ({
+    aisKey: String(input?.aisKey ?? "").slice(0, 120),
+  }))
+  .handler(async ({ data }) => {
+  startAis(data.aisKey);
   if (cache.freshness === "live" && cache.vessels.length > 8) {
     return cache;
   }

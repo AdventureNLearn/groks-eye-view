@@ -149,9 +149,13 @@ type Eonet = {
   }>;
 };
 
-export const getFires = createServerFn({ method: "GET" }).handler(async () => {
-  return cached("fires", 300_000, async () => {
-    const firmsKey = process.env.NASA_FIRMS_KEY?.trim();
+export const getFires = createServerFn({ method: "POST" })
+  .validator((input: { firmsKey?: string } | undefined) => ({
+    firmsKey: String(input?.firmsKey ?? "").slice(0, 80),
+  }))
+  .handler(async ({ data }) => {
+  return cached(data.firmsKey ? `fires:${data.firmsKey.slice(0, 8)}` : "fires", 300_000, async () => {
+    const firmsKey = (data.firmsKey || process.env.NASA_FIRMS_KEY || "").trim();
     if (firmsKey) {
       try {
         const url = `https://firms.modaps.eosdis.nasa.gov/api/area/csv/${firmsKey}/VIIRS_NOAA20_NRT/world/1`;
@@ -189,11 +193,11 @@ export const getFires = createServerFn({ method: "GET" }).handler(async () => {
         /* fall through to EONET */
       }
     }
-    const data = await fetchJson<Eonet>(
+    const eonet = await fetchJson<Eonet>(
       "https://eonet.gsfc.nasa.gov/api/v3/events?category=wildfires&status=open&limit=80",
     );
     const items: FireSample[] = [];
-    for (const ev of data.events ?? []) {
+    for (const ev of eonet.events ?? []) {
       const g = ev.geometry?.[ev.geometry.length - 1];
       const coords = g?.coordinates;
       if (!Array.isArray(coords) || typeof coords[0] !== "number") continue;

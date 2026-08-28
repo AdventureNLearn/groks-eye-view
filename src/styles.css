@@ -322,7 +322,7 @@
 
 .layer-rail {
   width: min(72vw, 260px);
-  max-height: min(70vh, 32rem);
+  max-height: min(70vh, 36rem);
 }
 
 .hud-toolbar {

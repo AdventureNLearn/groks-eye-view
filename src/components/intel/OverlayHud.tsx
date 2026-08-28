@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 import { CommsChat } from "./CommsChat";
 import { FirstRun } from "./FirstRun";
+import { FeedUnlock } from "./FeedUnlock";
 import { RadioDeck } from "./RadioDeck";
 import { formatAltFt, formatKts, formatLatLon, zuluNow } from "@/lib/intel/geo";
 import { runCommand } from "@/lib/intel/runCommand";
@@ -392,6 +393,7 @@ export function OverlayHud() {
                 );
               })}
             </ul>
+            <FeedUnlock />
             <p className="kicker mt-3">Display</p>
             <div className="mt-1 grid grid-cols-2 gap-1">
               <Toggle

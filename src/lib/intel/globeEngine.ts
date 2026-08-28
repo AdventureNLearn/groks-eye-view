@@ -11,6 +11,7 @@ import { getVessels } from "@/lib/feeds/ais";
 import { CRT_SHADER, FLIR_SHADER, NOIR_SHADER, NVG_SHADER, SNOW_SHADER } from "./shaders";
 import { makeIcon } from "./icons";
 import { flash, useIntel } from "./store";
+import { feedAuth } from "./feedKeys";
 import { deadReckon, formatKts, haversineM } from "./geo";
 import { matchPreset } from "./locations";
 import { simulatedVessels } from "./vessels";
@@ -402,7 +403,7 @@ export async function bootGlobe(container: HTMLDivElement): Promise<() => void> 
   async function refreshFlights() {
     if (destroyed || !useIntel.getState().layers.flights.on) return;
     try {
-      const data = await getFlights();
+      const data = await getFlights({ data: feedAuth() });
       if (destroyed) return;
       const live = data.flights ?? [];
       const samples = live.length > 0 ? live : simulatedFlights();
@@ -465,7 +466,7 @@ export async function bootGlobe(container: HTMLDivElement): Promise<() => void> 
     let freshness: "live" | "simulated" = "simulated";
     let detail = "Modeled shipping lanes";
     try {
-      const data = await getVessels();
+      const data = await getVessels({ data: feedAuth() });
       if (data.vessels.length) {
         list = data.vessels;
         freshness = data.freshness;
@@ -779,7 +780,7 @@ export async function bootGlobe(container: HTMLDivElement): Promise<() => void> 
   async function loadFires() {
     if (!useIntel.getState().layers.fires.on) return;
     try {
-      const data = await getFires();
+      const data = await getFires({ data: feedAuth() });
       if (destroyed) return;
       purgeExtras("fire-");
       for (const f of data.items as FireSample[]) {
