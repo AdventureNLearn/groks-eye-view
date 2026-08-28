@@ -2,6 +2,7 @@ import { useEffect, useRef } from "react";
 import { useIntel } from "@/lib/intel/store";
 
 if (typeof window !== "undefined") {
+  (window as unknown as { CESIUM_BASE_URL: string }).CESIUM_BASE_URL = "/cesiumStatic/";
   void import("cesium");
 }
 
@@ -26,7 +27,8 @@ export function GlobeCanvas() {
       })
       .catch((err: unknown) => {
         console.error("Globe boot failed", err);
-        useIntel.getState().setBoot(err instanceof Error ? err.message : "Globe failed to start");
+        const msg = err instanceof Error ? err.message : "Globe failed to start";
+        useIntel.getState().setBoot(msg, 100);
       });
     return () => {
       cancelled = true;

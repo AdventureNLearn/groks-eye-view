@@ -231,6 +231,15 @@ export function OverlayHud() {
             <p className="hud-num mt-2 text-xs text-muted">
               {Math.round(bootPct)}% · {boot}
             </p>
+            {bootPct >= 99 && (
+              <button
+                type="button"
+                className="mt-4 min-h-11 rounded-sm bg-accent px-4 text-sm text-accent-fg"
+                onClick={() => window.location.reload()}
+              >
+                Retry globe
+              </button>
+            )}
           </div>
         </div>
       )}

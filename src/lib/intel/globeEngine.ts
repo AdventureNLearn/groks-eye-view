@@ -68,11 +68,27 @@ const OSM = "https://tile.openstreetmap.org/{z}/{x}/{y}.png";
 const CARTO = "https://basemaps.cartocdn.com/dark_all/{z}/{x}/{y}@2x.png";
 const ISS_ID = "sat-25544";
 
+function isPhone(): boolean {
+  if (typeof window === "undefined") return false;
+  return (
+    window.matchMedia("(pointer: coarse)").matches ||
+    /Android|iPhone|iPod|Mobile/i.test(navigator.userAgent)
+  );
+}
+
+function fillViewport(el: HTMLElement) {
+  const vv = window.visualViewport;
+  const w = Math.max(1, Math.round(vv?.width ?? window.innerWidth));
+  const h = Math.max(1, Math.round(vv?.height ?? window.innerHeight));
+  el.style.width = `${w}px`;
+  el.style.height = `${h}px`;
+}
+
 function waitForFirstEarth(viewer: Viewer): Promise<void> {
   return new Promise((resolve) => {
     const globe = viewer.scene.globe;
     const started = Date.now();
-    const LIMIT_MS = 12_000;
+    const LIMIT_MS = isPhone() ? 8_000 : 12_000;
     let peak = 8;
     let finished = false;
     const finish = () => {
@@ -93,10 +109,10 @@ function waitForFirstEarth(viewer: Viewer): Promise<void> {
         queued > 0 ? `Pulling Earth · ${queued}` : "Locking the view",
         48 + Math.round(frac * 48),
       );
-      if (queued === 0 && Date.now() - started > 500) finish();
+      if (queued === 0 && Date.now() - started > 400) finish();
     });
     const poll = window.setInterval(() => {
-      if (globe.tilesLoaded && Date.now() - started > 400) {
+      if (globe.tilesLoaded && Date.now() - started > 300) {
         useIntel.getState().setBoot("Locking the view", 96);
         finish();
         return;
@@ -105,28 +121,29 @@ function waitForFirstEarth(viewer: Viewer): Promise<void> {
         useIntel.getState().setBoot("Going in anyway", 96);
         finish();
       }
-    }, 250);
+    }, 200);
   });
 }
 
-export async function bootGlobe(container: HTMLDivElement): Promise<() => void> {
-  (window as unknown as { CESIUM_BASE_URL: string }).CESIUM_BASE_URL = "/cesiumStatic/";
-  const link = document.createElement("link");
-  link.rel = "stylesheet";
-  link.href = "/cesiumStatic/Widgets/widgets.css";
-  document.head.appendChild(link);
+type CesiumNS = typeof import("cesium");
 
-  useIntel.getState().setBoot("Loading Cesium", 12);
-  const Cesium = await import("cesium");
-  useIntel.getState().setBoot("Configuring viewer", 32);
-
-  const imagery = new Cesium.UrlTemplateImageryProvider({
-    url: ESRI,
-    maximumLevel: 19,
-    credit: "Esri, Maxar, Earthstar Geographics",
+function makeImagery(Cesium: CesiumNS, url: string, credit: string, maxLevel: number) {
+  return new Cesium.UrlTemplateImageryProvider({
+    url,
+    credit,
+    maximumLevel: maxLevel,
+    tilingScheme: new Cesium.WebMercatorTilingScheme(),
   });
+}
 
-  const viewer = new Cesium.Viewer(container, {
+function createViewer(
+  Cesium: CesiumNS,
+  container: HTMLDivElement,
+  imagery: import("cesium").UrlTemplateImageryProvider,
+  phone: boolean,
+  webgl1: boolean,
+): Viewer {
+  return new Cesium.Viewer(container, {
     animation: false,
     timeline: false,
     baseLayerPicker: false,
@@ -140,19 +157,75 @@ export async function bootGlobe(container: HTMLDivElement): Promise<() => void> 
     vrButton: false,
     terrainProvider: new Cesium.EllipsoidTerrainProvider(),
     baseLayer: new Cesium.ImageryLayer(imagery),
-    msaaSamples: 2,
+    msaaSamples: phone ? 1 : 2,
     requestRenderMode: false,
-    targetFrameRate: 60,
-    contextOptions: { webgl: { preserveDrawingBuffer: true } },
+    targetFrameRate: phone ? 30 : 60,
+    showRenderLoopErrors: false,
+    contextOptions: {
+      requestWebgl1: webgl1,
+      webgl: {
+        alpha: false,
+        antialias: !phone,
+        depth: true,
+        stencil: false,
+        failIfMajorPerformanceCaveat: false,
+        preserveDrawingBuffer: !phone,
+        powerPreference: phone ? "default" : "high-performance",
+      },
+    },
   });
+}
 
+function bootViewer(Cesium: CesiumNS, container: HTMLDivElement, phone: boolean): Viewer {
+  const maxLevel = phone ? 12 : 19;
+  const imagery = makeImagery(Cesium, ESRI, "Esri, Maxar, Earthstar Geographics", maxLevel);
+  const order = phone ? [true, false] : [false, true];
+  let last: unknown;
+  for (const webgl1 of order) {
+    try {
+      fillViewport(container);
+      return createViewer(Cesium, container, imagery, phone, webgl1);
+    } catch (err) {
+      last = err;
+      container.replaceChildren();
+    }
+  }
+  throw last instanceof Error ? last : new Error("WebGL globe failed to start");
+}
+
+export async function bootGlobe(container: HTMLDivElement): Promise<() => void> {
+  (window as unknown as { CESIUM_BASE_URL: string }).CESIUM_BASE_URL = "/cesiumStatic/";
+  const link = document.createElement("link");
+  link.rel = "stylesheet";
+  link.href = "/cesiumStatic/Widgets/widgets.css";
+  document.head.appendChild(link);
+
+  useIntel.getState().setBoot("Loading Cesium", 12);
+  const Cesium = await import("cesium");
+  useIntel.getState().setBoot("Configuring viewer", 32);
+
+  const phone = isPhone();
+  fillViewport(container);
+  const viewer = bootViewer(Cesium, container, phone);
+
+  viewer.scene.backgroundColor = Cesium.Color.fromBytes(7, 9, 12, 255);
+  viewer.scene.globe.baseColor = Cesium.Color.fromBytes(18, 42, 64, 255);
   viewer.scene.globe.enableLighting = false;
-  viewer.scene.globe.atmosphereLightIntensity = 18;
-  if (viewer.scene.skyAtmosphere) viewer.scene.skyAtmosphere.show = true;
-  viewer.scene.fog.enabled = true;
-  viewer.scene.globe.showGroundAtmosphere = true;
+  viewer.scene.globe.atmosphereLightIntensity = phone ? 8 : 18;
+  if (viewer.scene.skyAtmosphere) viewer.scene.skyAtmosphere.show = !phone;
+  viewer.scene.fog.enabled = !phone;
+  viewer.scene.globe.showGroundAtmosphere = !phone;
+  viewer.scene.globe.tileCacheSize = phone ? 50 : 200;
+  viewer.scene.globe.maximumScreenSpaceError = phone ? 3.5 : 2;
+  viewer.useBrowserRecommendedResolution = true;
+  if (phone) {
+    const dpr = window.devicePixelRatio || 1;
+    viewer.resolutionScale = Math.min(1, 1.2 / dpr);
+  }
   viewer.clock.shouldAnimate = true;
   viewer.cesiumWidget.showErrorPanel = () => {};
+  viewer.resize();
+  viewer.scene.requestRender();
 
   const icons = {
     plane: makeIcon("plane", "#7ec8e8"),
@@ -198,6 +271,22 @@ export async function bootGlobe(container: HTMLDivElement): Promise<() => void> 
   let mapSource: MapSourceId = "satellite";
   let imageryLayer: ImageryLayer = viewer.imageryLayers.get(0);
   let lastCamWrite = 0;
+  let osmFallback = false;
+
+  const firstProvider = imageryLayer?.imageryProvider as
+    | { errorEvent?: { addEventListener: (fn: () => void) => void } }
+    | undefined;
+  firstProvider?.errorEvent?.addEventListener(() => {
+    if (osmFallback || destroyed) return;
+    osmFallback = true;
+    const next = new Cesium.ImageryLayer(
+      makeImagery(Cesium, OSM, "© OpenStreetMap", phone ? 12 : 18),
+    );
+    viewer.imageryLayers.add(next);
+    if (imageryLayer) viewer.imageryLayers.remove(imageryLayer);
+    imageryLayer = next;
+    useIntel.getState().setBoot("Switched to street tiles", 70);
+  });
 
   function cartesian(lon: number, lat: number, alt: number): Cartesian3 {
     return Cesium.Cartesian3.fromDegrees(lon, lat, alt);
@@ -233,7 +322,7 @@ export async function bootGlobe(container: HTMLDivElement): Promise<() => void> 
           ? "CARTO"
           : "Esri, Maxar, Earthstar Geographics";
     const next = new Cesium.ImageryLayer(
-      new Cesium.UrlTemplateImageryProvider({ url, maximumLevel: 18, credit }),
+      makeImagery(Cesium, url, credit, phone ? 12 : 18),
     );
     viewer.imageryLayers.add(next);
     viewer.imageryLayers.remove(imageryLayer);
@@ -1238,8 +1327,12 @@ export async function bootGlobe(container: HTMLDivElement): Promise<() => void> 
   const vesTimer = window.setInterval(() => refreshVessels(), 2500);
   const satTimer = window.setInterval(() => updateSats(), 1500);
   const issTimer = window.setInterval(() => void refreshIss(), 12_000);
-  const onResize = () => viewer.resize();
+  const onResize = () => {
+    fillViewport(container);
+    viewer.resize();
+  };
   window.addEventListener("resize", onResize);
+  window.visualViewport?.addEventListener("resize", onResize);
 
   useIntel.getState().setEngine(api);
   useIntel.getState().setBoot("Pulling Earth", 48);
@@ -1285,6 +1378,7 @@ export async function bootGlobe(container: HTMLDivElement): Promise<() => void> 
     window.clearInterval(satTimer);
     window.clearInterval(issTimer);
     window.removeEventListener("resize", onResize);
+    window.visualViewport?.removeEventListener("resize", onResize);
     handler.destroy();
     removeTick();
     useIntel.getState().setEngine(null);
