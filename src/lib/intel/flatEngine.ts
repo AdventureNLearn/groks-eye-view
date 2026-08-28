@@ -1,5 +1,6 @@
 import { getEarthquakes, getFires, getIss, getLaunches, getSatellites, geocodePlace } from "@/lib/feeds/world";
 import { getFlights, getMilitary } from "@/lib/feeds/flights";
+import { getVessels } from "@/lib/feeds/ais";
 import { json2satrec, propagate, gstime, eciToGeodetic, degreesLat, degreesLong } from "satellite.js";
 import { flash, useIntel } from "./store";
 import { matchPreset } from "./locations";
@@ -480,7 +481,19 @@ export async function bootFlatMap(container: HTMLDivElement): Promise<() => void
     }
 
     if (layers.vessels.on) {
-      const rows = simulatedVessels();
+      let rows = simulatedVessels();
+      let freshness: "live" | "simulated" = "simulated";
+      let detail = LAYER_META.vessels.source;
+      try {
+        const data = await getVessels();
+        if (data.vessels.length) {
+          rows = data.vessels;
+          freshness = data.freshness;
+          detail = data.source;
+        }
+      } catch {
+        /* modeled lanes */
+      }
       for (const v of rows) {
         next.push({
           id: v.id,
@@ -493,8 +506,8 @@ export async function bootFlatMap(container: HTMLDivElement): Promise<() => void
       }
       useIntel.getState().setLayer("vessels", {
         count: rows.length,
-        freshness: "simulated",
-        detail: LAYER_META.vessels.source,
+        freshness,
+        detail,
       });
     } else {
       useIntel.getState().setLayer("vessels", { count: 0, freshness: "off" });

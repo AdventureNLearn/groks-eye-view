@@ -7,6 +7,7 @@ import {
   geocodePlace,
 } from "@/lib/feeds/world";
 import { getFlights, getMilitary } from "@/lib/feeds/flights";
+import { getVessels } from "@/lib/feeds/ais";
 import { CRT_SHADER, FLIR_SHADER, NOIR_SHADER, NVG_SHADER, SNOW_SHADER } from "./shaders";
 import { makeIcon } from "./icons";
 import { flash, useIntel } from "./store";
@@ -458,9 +459,22 @@ export async function bootGlobe(container: HTMLDivElement): Promise<() => void> 
     }
   }
 
-  function refreshVessels() {
+  async function refreshVessels() {
     if (destroyed || !useIntel.getState().layers.vessels.on) return;
-    const list = simulatedVessels();
+    let list = simulatedVessels();
+    let freshness: "live" | "simulated" = "simulated";
+    let detail = "Modeled shipping lanes";
+    try {
+      const data = await getVessels();
+      if (data.vessels.length) {
+        list = data.vessels;
+        freshness = data.freshness;
+        detail = data.source;
+      }
+    } catch {
+      /* keep modeled lanes */
+    }
+    if (destroyed) return;
     const seen = new Set<string>();
     for (const v of list) {
       seen.add(v.id);
@@ -494,8 +508,8 @@ export async function bootGlobe(container: HTMLDivElement): Promise<() => void> 
     }
     useIntel.getState().setLayer("vessels", {
       count: vessels.size,
-      freshness: "simulated",
-      detail: "Modeled shipping lanes",
+      freshness,
+      detail,
     });
   }
 

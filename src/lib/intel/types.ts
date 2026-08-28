@@ -159,9 +159,9 @@ export const LAYER_META: Record<
   LayerId,
   { label: string; short: string; source: string; freshness: Freshness }
 > = {
-  flights: { label: "Live flights", short: "FLT", source: "OpenSky / adsb.lol", freshness: "live" },
-  military: { label: "Military ADS-B", short: "MIL", source: "adsb.lol", freshness: "live" },
-  vessels: { label: "Vessels", short: "AIS", source: "Modeled shipping lanes", freshness: "simulated" },
+  flights: { label: "Live flights", short: "FLT", source: "OpenSky / adsb.fi", freshness: "live" },
+  military: { label: "Military ADS-B", short: "MIL", source: "adsb.fi military", freshness: "live" },
+  vessels: { label: "Vessels", short: "AIS", source: "Modeled lanes · AISStream key unlocks live", freshness: "simulated" },
   satellites: { label: "Satellites", short: "SAT", source: "CelesTrak SGP4", freshness: "live" },
   earthquakes: { label: "Earthquakes", short: "EQ", source: "USGS 24h", freshness: "live" },
   fires: { label: "Active fires", short: "FIR", source: "NASA EONET", freshness: "live" },

@@ -21,7 +21,7 @@ export async function fetchJson<T>(
       signal: ctrl.signal,
       headers: {
         Accept: "application/json",
-        "User-Agent": "GodsEyeView/1.0 (grok.me spatial intelligence client)",
+        "User-Agent": "GroksEyeView/1.1 (https://grok.me; public geospatial client)",
         ...opts.headers,
       },
     });

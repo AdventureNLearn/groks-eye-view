@@ -52,20 +52,29 @@ function asOmm(row: CelestrakSat): SatOmm {
 }
 
 async function fetchGroup(group: string): Promise<SatCatalogItem[]> {
-  const rows = await fetchJson<CelestrakSat[]>(
+  const urls = [
     `https://celestrak.org/NORAD/elements/gp.php?GROUP=${group}&FORMAT=json`,
-    { timeoutMs: 14_000 },
-  );
-  return (rows ?? []).slice(0, group === "visual" ? 220 : 80).map((row) => {
-    const rec = asOmm(row);
-    return {
-      id: String(rec.NORAD_CAT_ID || rec.OBJECT_ID || rec.OBJECT_NAME),
-      name: rec.OBJECT_NAME,
-      norad: rec.NORAD_CAT_ID,
-      group,
-      rec,
-    };
-  });
+    `https://celestrak.com/NORAD/elements/gp.php?GROUP=${group}&FORMAT=json`,
+  ];
+  let last: unknown;
+  for (const url of urls) {
+    try {
+      const rows = await fetchJson<CelestrakSat[]>(url, { timeoutMs: 16_000 });
+      return (rows ?? []).slice(0, group === "visual" ? 220 : 80).map((row) => {
+        const rec = asOmm(row);
+        return {
+          id: String(rec.NORAD_CAT_ID || rec.OBJECT_ID || rec.OBJECT_NAME),
+          name: rec.OBJECT_NAME,
+          norad: rec.NORAD_CAT_ID,
+          group,
+          rec,
+        };
+      });
+    } catch (err) {
+      last = err;
+    }
+  }
+  throw last instanceof Error ? last : new Error("CelesTrak unreachable");
 }
 
 export const getSatellites = createServerFn({ method: "GET" }).handler(async () => {
@@ -142,6 +151,44 @@ type Eonet = {
 
 export const getFires = createServerFn({ method: "GET" }).handler(async () => {
   return cached("fires", 300_000, async () => {
+    const firmsKey = process.env.NASA_FIRMS_KEY?.trim();
+    if (firmsKey) {
+      try {
+        const url = `https://firms.modaps.eosdis.nasa.gov/api/area/csv/${firmsKey}/VIIRS_NOAA20_NRT/world/1`;
+        const ctrl = new AbortController();
+        const t = setTimeout(() => ctrl.abort(), 12_000);
+        const res = await fetch(url, { signal: ctrl.signal });
+        clearTimeout(t);
+        if (res.ok) {
+          const text = await res.text();
+          const lines = text.trim().split("\n");
+          const header = lines.shift()?.split(",") ?? [];
+          const iLat = header.indexOf("latitude");
+          const iLon = header.indexOf("longitude");
+          const iBright = header.indexOf("bright_ti4");
+          const items: FireSample[] = [];
+          for (const line of lines) {
+            const cols = line.split(",");
+            const lat = Number(cols[iLat]);
+            const lon = Number(cols[iLon]);
+            if (!Number.isFinite(lat) || !Number.isFinite(lon)) continue;
+            items.push({
+              id: `firms-${lon.toFixed(2)}-${lat.toFixed(2)}`,
+              title: `Hotspot ${Number(cols[iBright] || 0).toFixed(0)}K`,
+              lat,
+              lon,
+              source: "NASA FIRMS",
+            });
+            if (items.length >= 120) break;
+          }
+          if (items.length) {
+            return { items, source: "NASA FIRMS VIIRS", at: Date.now(), freshness: "live" as const };
+          }
+        }
+      } catch {
+        /* fall through to EONET */
+      }
+    }
     const data = await fetchJson<Eonet>(
       "https://eonet.gsfc.nasa.gov/api/v3/events?category=wildfires&status=open&limit=80",
     );
