@@ -48,8 +48,6 @@
   html,
   body {
     overflow: hidden;
-    position: fixed;
-    inset: 0;
     overscroll-behavior: none;
   }
 
@@ -120,6 +118,61 @@
   width: 100%;
   height: 100%;
   touch-action: none;
+}
+
+.flat-map {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  background: #0a1520;
+  touch-action: none;
+}
+
+.flat-map-tiles,
+.flat-map-marks {
+  position: absolute;
+  inset: 0;
+}
+
+.flat-map-tiles img {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 256px;
+  height: 256px;
+  transform-origin: 0 0;
+  pointer-events: none;
+  user-select: none;
+  -webkit-user-drag: none;
+}
+
+.flat-mark {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 10px;
+  height: 10px;
+  margin: -5px 0 0 -5px;
+  border: 1px solid rgb(7 9 12 / 0.8);
+  border-radius: var(--radius-xl);
+  box-shadow: 0 0 8px currentColor;
+  pointer-events: auto;
+}
+
+.flat-map[data-style="nvg"] .flat-map-tiles {
+  filter: hue-rotate(80deg) saturate(0.7) brightness(0.85);
+}
+.flat-map[data-style="flir"] .flat-map-tiles {
+  filter: hue-rotate(-40deg) saturate(1.4) contrast(1.2);
+}
+.flat-map[data-style="noir"] .flat-map-tiles {
+  filter: grayscale(1) contrast(1.15);
+}
+.flat-map[data-style="crt"] .flat-map-tiles {
+  filter: contrast(1.1) saturate(1.2);
+}
+.flat-map[data-style="snow"] .flat-map-tiles {
+  filter: brightness(1.15) saturate(0.5);
 }
 
 .intel-hud {
