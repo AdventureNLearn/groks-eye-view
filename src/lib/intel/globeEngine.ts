@@ -68,6 +68,47 @@ const OSM = "https://tile.openstreetmap.org/{z}/{x}/{y}.png";
 const CARTO = "https://basemaps.cartocdn.com/dark_all/{z}/{x}/{y}@2x.png";
 const ISS_ID = "sat-25544";
 
+function waitForFirstEarth(viewer: Viewer): Promise<void> {
+  return new Promise((resolve) => {
+    const globe = viewer.scene.globe;
+    const started = Date.now();
+    const LIMIT_MS = 12_000;
+    let peak = 8;
+    let finished = false;
+    const finish = () => {
+      if (finished) return;
+      finished = true;
+      window.clearInterval(poll);
+      try {
+        remove();
+      } catch {
+        /* event already gone */
+      }
+      resolve();
+    };
+    const remove = globe.tileLoadProgressEvent.addEventListener((queued: number) => {
+      if (queued > 0) peak = Math.max(peak, queued);
+      const frac = queued <= 0 ? 1 : Math.max(0, 1 - queued / peak);
+      useIntel.getState().setBoot(
+        queued > 0 ? `Pulling Earth · ${queued}` : "Locking the view",
+        48 + Math.round(frac * 48),
+      );
+      if (queued === 0 && Date.now() - started > 500) finish();
+    });
+    const poll = window.setInterval(() => {
+      if (globe.tilesLoaded && Date.now() - started > 400) {
+        useIntel.getState().setBoot("Locking the view", 96);
+        finish();
+        return;
+      }
+      if (Date.now() - started > LIMIT_MS) {
+        useIntel.getState().setBoot("Going in anyway", 96);
+        finish();
+      }
+    }, 250);
+  });
+}
+
 export async function bootGlobe(container: HTMLDivElement): Promise<() => void> {
   (window as unknown as { CESIUM_BASE_URL: string }).CESIUM_BASE_URL = "/cesiumStatic/";
   const link = document.createElement("link");
@@ -75,9 +116,9 @@ export async function bootGlobe(container: HTMLDivElement): Promise<() => void> 
   link.href = "/cesiumStatic/Widgets/widgets.css";
   document.head.appendChild(link);
 
-  useIntel.getState().setBoot("Loading Cesium");
+  useIntel.getState().setBoot("Loading Cesium", 12);
   const Cesium = await import("cesium");
-  useIntel.getState().setBoot("Configuring viewer");
+  useIntel.getState().setBoot("Configuring viewer", 32);
 
   const imagery = new Cesium.UrlTemplateImageryProvider({
     url: ESRI,
@@ -1201,7 +1242,7 @@ export async function bootGlobe(container: HTMLDivElement): Promise<() => void> 
   window.addEventListener("resize", onResize);
 
   useIntel.getState().setEngine(api);
-  useIntel.getState().setBoot("Flying to Earth");
+  useIntel.getState().setBoot("Pulling Earth", 48);
   viewer.camera.setView({
     destination: Cesium.Cartesian3.fromDegrees(-32, 18, 22_000_000),
   });
@@ -1220,6 +1261,8 @@ export async function bootGlobe(container: HTMLDivElement): Promise<() => void> 
     }
   }
 
+  await waitForFirstEarth(viewer);
+  useIntel.getState().setBoot("We're in", 100);
   useIntel.getState().setReady(true);
   flash("We're in. Everything here is public.");
   (window as unknown as { __gevReady?: boolean }).__gevReady = true;

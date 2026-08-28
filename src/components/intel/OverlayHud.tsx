@@ -51,6 +51,7 @@ const MAPS: { id: MapSourceId; label: string }[] = [
 export function OverlayHud() {
   const ready = useIntel((s) => s.ready);
   const boot = useIntel((s) => s.bootStatus);
+  const bootPct = useIntel((s) => s.bootPct);
   const style = useIntel((s) => s.style);
   const hud = useIntel((s) => s.hud);
   const detection = useIntel((s) => s.detection);
@@ -86,6 +87,16 @@ export function OverlayHud() {
     const id = window.setInterval(tick, 1000);
     return () => window.clearInterval(id);
   }, []);
+
+  useEffect(() => {
+    if (ready) return;
+    const id = window.setInterval(() => {
+      const s = useIntel.getState();
+      if (s.ready || s.bootPct >= 22) return;
+      s.setBoot(s.bootStatus, s.bootPct + 1.2);
+    }, 280);
+    return () => window.clearInterval(id);
+  }, [ready]);
 
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
@@ -200,14 +211,26 @@ export function OverlayHud() {
       <div className="hud-corners" aria-hidden />
 
       {!ready && (
-        <div className="absolute inset-0 z-30 flex items-center justify-center bg-void pointer-events-auto">
+        <div className="absolute inset-0 z-40 flex items-center justify-center bg-void pointer-events-auto px-6">
           <div className="scanline absolute inset-0 opacity-40" />
-          <div className="relative text-center px-6">
+          <div className="relative w-full max-w-sm text-center">
             <p className="kicker">Waking the all-seeing meme</p>
             <h1 className="font-display mt-2 text-4xl font-semibold tracking-wide">
               <span className="text-accent">GROK'S</span> EYE VIEW
             </h1>
-            <p className="hud-num mt-3 text-xs text-muted">{boot}</p>
+            <div
+              className="boot-bar mt-6"
+              role="progressbar"
+              aria-valuemin={0}
+              aria-valuemax={100}
+              aria-valuenow={Math.round(bootPct)}
+              aria-label="Loading globe"
+            >
+              <span className="boot-bar-fill" style={{ width: `${Math.max(6, Math.min(100, bootPct))}%` }} />
+            </div>
+            <p className="hud-num mt-2 text-xs text-muted">
+              {Math.round(bootPct)}% · {boot}
+            </p>
           </div>
         </div>
       )}

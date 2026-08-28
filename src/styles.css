@@ -186,6 +186,28 @@
   );
 }
 
+.boot-bar {
+  height: 8px;
+  overflow: hidden;
+  border: 1px solid var(--color-line-strong);
+  border-radius: var(--radius-xl);
+  background: var(--color-panel-2);
+}
+
+.boot-bar-fill {
+  display: block;
+  height: 100%;
+  background: var(--color-accent);
+  box-shadow: 0 0 10px var(--color-accent);
+  transition: width 280ms ease-out;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .boot-bar-fill {
+    transition: none;
+  }
+}
+
 .layer-rail {
   width: min(72vw, 260px);
   max-height: min(70vh, 32rem);

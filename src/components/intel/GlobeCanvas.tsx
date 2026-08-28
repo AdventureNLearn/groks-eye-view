@@ -13,6 +13,7 @@ export function GlobeCanvas() {
     if (!el) return;
     let cleanup: (() => void) | undefined;
     let cancelled = false;
+    useIntel.getState().setBoot("Loading globe engine", 8);
     void import("@/lib/intel/globeEngine")
       .then(({ bootGlobe }) => {
         if (cancelled) return undefined;

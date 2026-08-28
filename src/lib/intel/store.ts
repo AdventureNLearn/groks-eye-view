@@ -22,6 +22,7 @@ export type LayerState = {
 type IntelState = {
   ready: boolean;
   bootStatus: string;
+  bootPct: number;
   style: StyleId;
   mapSource: MapSourceId;
   hud: boolean;
@@ -42,7 +43,7 @@ type IntelState = {
   engine: EngineApi | null;
   setEngine: (api: EngineApi | null) => void;
   setReady: (v: boolean) => void;
-  setBoot: (s: string) => void;
+  setBoot: (s: string, pct?: number) => void;
   setStyle: (s: StyleId) => void;
   setMapSource: (s: MapSourceId) => void;
   setHud: (v: boolean) => void;
@@ -87,7 +88,8 @@ export function hydrateFirstRun() {
 
 export const useIntel = create<IntelState>((set) => ({
   ready: false,
-  bootStatus: "Configuring viewer",
+  bootStatus: "Waking globe",
+  bootPct: 4,
   style: "normal",
   mapSource: "satellite",
   hud: true,
@@ -108,7 +110,11 @@ export const useIntel = create<IntelState>((set) => ({
   engine: null,
   setEngine: (engine) => set({ engine }),
   setReady: (ready) => set({ ready }),
-  setBoot: (bootStatus) => set({ bootStatus }),
+  setBoot: (bootStatus, pct) =>
+    set((s) => ({
+      bootStatus,
+      bootPct: pct == null ? s.bootPct : Math.min(100, Math.max(s.bootPct, pct)),
+    })),
   setStyle: (style) => set({ style }),
   setMapSource: (mapSource) => set({ mapSource }),
   setHud: (hud) => set({ hud }),
