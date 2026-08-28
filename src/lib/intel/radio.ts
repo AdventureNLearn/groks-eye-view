@@ -7,6 +7,8 @@ export type RadioStation = {
   url: string;
   home?: string;
   kind: "preset" | "custom";
+  quality?: string;
+  mirrors?: string[];
 };
 
 const STORAGE_KEY = "grok-eye:radio-v1";
@@ -20,22 +22,33 @@ export const PRESET_STATIONS: RadioStation[] = [
     url: "https://streaming.exclusive.radio/er/creedence/icecast.audio",
     home: "https://exclusive.radio/",
     kind: "preset",
+    quality: "128k MP3",
   },
   {
     id: "seventies",
     name: "Left Coast 70s",
     blurb: "Mellow album rock. Yacht not required.",
-    url: "https://ice6.somafm.com/seventies-128-mp3",
+    url: "https://ice2.somafm.com/seventies-320-mp3",
     home: "https://somafm.com/seventies/",
     kind: "preset",
+    quality: "320k MP3",
+    mirrors: [
+      "https://ice6.somafm.com/seventies-320-mp3",
+      "https://ice5.somafm.com/seventies-320-mp3",
+    ],
   },
   {
     id: "bootliquor",
     name: "Boot Liquor",
     blurb: "Americana for cowhands and cowtippers.",
-    url: "https://ice6.somafm.com/bootliquor-128-mp3",
+    url: "https://ice2.somafm.com/bootliquor-320-mp3",
     home: "https://somafm.com/bootliquor/",
     kind: "preset",
+    quality: "320k MP3",
+    mirrors: [
+      "https://ice6.somafm.com/bootliquor-320-mp3",
+      "https://ice5.somafm.com/bootliquor-320-mp3",
+    ],
   },
 ];
 
@@ -115,6 +128,11 @@ export function allStations(custom: RadioStation[]): RadioStation[] {
 
 export function findStation(id: string, custom: RadioStation[]): RadioStation | undefined {
   return allStations(custom).find((s) => s.id === id);
+}
+
+export function stationPlayUrls(station: RadioStation): string[] {
+  const extra = station.mirrors?.filter((u) => u && u !== station.url) ?? [];
+  return [station.url, ...extra];
 }
 
 export const useRadio = create<RadioState>((set, get) => ({

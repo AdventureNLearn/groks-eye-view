@@ -41,18 +41,29 @@ export const searchRadioStations = createServerFn({ method: "POST" })
     try {
       const hits = await cached(`radio:${q.toLowerCase()}`, 30 * 60 * 1000, async () => {
         const url =
-          `https://de1.api.radio-browser.info/json/stations/search?hidebroken=true&limit=12&order=clickcount&reverse=true&name=${encodeURIComponent(q)}`;
+          `https://de1.api.radio-browser.info/json/stations/search?hidebroken=true&limit=24&order=clickcount&reverse=true&name=${encodeURIComponent(q)}`;
         const rows = await fetchJson<BrowserStation[]>(url, {
           timeoutMs: 9000,
           headers: { "User-Agent": "GroksEyeView/1.0" },
         });
+        const scored = (rows ?? [])
+          .map((row) => {
+            const hit = asHit(row);
+            if (!hit) return null;
+            const br = Math.min(320, Math.max(0, row.bitrate ?? 0));
+            if (br > 0 && br < 64) return null;
+            const codec = (row.codec ?? "").toUpperCase();
+            const codecBonus = codec.includes("AAC") ? 48 : codec === "MP3" ? 16 : 0;
+            return { hit, score: br + codecBonus };
+          })
+          .filter((x): x is { hit: RadioSearchHit; score: number } => !!x)
+          .sort((a, b) => b.score - a.score);
         const out: RadioSearchHit[] = [];
         const seen = new Set<string>();
-        for (const row of rows ?? []) {
-          const hit = asHit(row);
-          if (!hit || seen.has(hit.url)) continue;
-          seen.add(hit.url);
-          out.push(hit);
+        for (const row of scored) {
+          if (seen.has(row.hit.url)) continue;
+          seen.add(row.hit.url);
+          out.push(row.hit);
           if (out.length >= 5) break;
         }
         return out;

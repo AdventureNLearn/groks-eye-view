@@ -1,9 +1,11 @@
 import { useEffect, useRef, useState } from "react";
 import { Pause, Play, Plus, Radio, Trash2, X } from "lucide-react";
 import { searchRadioStations } from "@/lib/feeds/radio";
+import { createRadioChain, type RadioChain } from "@/lib/intel/audioChain";
 import {
   PRESET_STATIONS,
   findStation,
+  stationPlayUrls,
   useRadio,
   type RadioStation,
 } from "@/lib/intel/radio";
@@ -18,17 +20,55 @@ export function RadioDeck() {
   const custom = useRadio((s) => s.custom);
   const error = useRadio((s) => s.error);
   const audioRef = useRef<HTMLAudioElement>(null);
-  const lastUrl = useRef("");
+  const chainRef = useRef<RadioChain | null>(null);
+  const lastKey = useRef("");
+  const urlIndex = useRef(0);
+  const suppressError = useRef(0);
   const station = findStation(stationId, custom) ?? PRESET_STATIONS[0];
+
+  function ensureChain() {
+    const el = audioRef.current;
+    if (!el) return;
+    if (!chainRef.current) {
+      chainRef.current = createRadioChain(el);
+      chainRef.current?.setVolume(useRadio.getState().volume);
+    }
+    void chainRef.current?.resume();
+  }
+
+  function tune(audio: HTMLAudioElement, url: string) {
+    suppressError.current = Date.now() + 1200;
+    audio.src = url;
+    audio.preload = "auto";
+    audio.load();
+  }
+
+  function playOrAdvance(audio: HTMLAudioElement, urls: string[]) {
+    void audio.play().catch((err: unknown) => {
+      const name = err instanceof Error ? err.name : "";
+      if (name === "AbortError" || name === "NotAllowedError") return;
+      const next = urlIndex.current + 1;
+      if (next < urls.length) {
+        urlIndex.current = next;
+        tune(audio, urls[next]);
+        playOrAdvance(audio, urls);
+        return;
+      }
+      useRadio.getState().setError("Station's dead. Try another.");
+      flash("Radio missed. Try another station.");
+    });
+  }
 
   useEffect(() => {
     useRadio.getState().hydrate();
+    const prime = () => ensureChain();
+    window.addEventListener("pointerdown", prime, { once: true });
+    return () => window.removeEventListener("pointerdown", prime);
   }, []);
 
   useEffect(() => {
-    const audio = audioRef.current;
-    if (!audio) return;
-    audio.volume = volume;
+    if (chainRef.current) chainRef.current.setVolume(volume);
+    else if (audioRef.current) audioRef.current.volume = volume;
   }, [volume]);
 
   useEffect(() => {
@@ -38,25 +78,48 @@ export function RadioDeck() {
       audio.pause();
       return;
     }
-    if (lastUrl.current !== station.url) {
-      lastUrl.current = station.url;
-      audio.src = station.url;
-      audio.load();
+    ensureChain();
+    const urls = stationPlayUrls(station);
+    const key = `${station.id}:${station.url}`;
+    if (lastKey.current !== key) {
+      lastKey.current = key;
+      urlIndex.current = 0;
+      tune(audio, urls[0]);
     }
-    void audio.play().catch(() => {
-      useRadio.getState().setError("Station's dead. Try another.");
-      flash("Radio missed. Try another station.");
-    });
+    playOrAdvance(audio, urls);
   }, [playing, station?.id, station?.url]);
 
   return (
     <>
       <audio
         ref={audioRef}
-        preload="none"
+        preload="auto"
         playsInline
+        onWaiting={() => {
+          /* keep playing state; Icecast will refill */
+        }}
+        onStalled={() => {
+          const audio = audioRef.current;
+          if (!audio || !useRadio.getState().playing) return;
+          if (Date.now() < suppressError.current) return;
+          if (audio.readyState >= 2) return;
+          const urls = station ? stationPlayUrls(station) : [];
+          if (!urls.length) return;
+          tune(audio, urls[urlIndex.current] ?? urls[0]);
+          playOrAdvance(audio, urls);
+        }}
         onError={() => {
           if (!useRadio.getState().playing) return;
+          if (Date.now() < suppressError.current) return;
+          const audio = audioRef.current;
+          const urls = station ? stationPlayUrls(station) : [];
+          const next = urlIndex.current + 1;
+          if (audio && next < urls.length) {
+            urlIndex.current = next;
+            tune(audio, urls[next]);
+            playOrAdvance(audio, urls);
+            return;
+          }
           useRadio.getState().setError("Stream failed.");
           flash("Radio stream failed.");
         }}
@@ -171,7 +234,9 @@ function RadioPicker({
         </button>
         <div className="min-w-0 flex-1">
           <p className="truncate font-display text-base font-semibold tracking-wide">{station.name}</p>
-          <p className="truncate text-xs text-muted">{error || station.blurb}</p>
+          <p className="truncate text-xs text-muted">
+            {error || [station.quality, station.blurb].filter(Boolean).join(" · ")}
+          </p>
         </div>
         <label className="flex w-24 flex-col gap-1">
           <span className="kicker">Vol</span>
@@ -318,7 +383,9 @@ function StationRow({
         <span className="live-dot" data-state={active && playing ? "live" : "off"} />
         <span className="min-w-0 flex-1">
           <span className="block truncate text-sm">{station.name}</span>
-          <span className="block truncate text-xs text-subtle">{station.blurb}</span>
+          <span className="block truncate text-xs text-subtle">
+            {[station.quality, station.blurb].filter(Boolean).join(" · ")}
+          </span>
         </span>
       </button>
       {removable && (
