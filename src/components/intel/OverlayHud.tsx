@@ -130,6 +130,18 @@ export function OverlayHud() {
         }
         return;
       }
+      if (useRadio.getState().picker) {
+        if (e.key === "ArrowRight") {
+          e.preventDefault();
+          useRadio.getState().next();
+          return;
+        }
+        if (e.key === "ArrowLeft") {
+          e.preventDefault();
+          useRadio.getState().prev();
+          return;
+        }
+      }
       if (e.key === "l" || e.key === "L") {
         setDrawerOpen((v) => !v);
         useComms.getState().setOpen(false);

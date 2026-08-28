@@ -36,6 +36,12 @@ export function parseCommand(raw: string): CommandAction {
   if (/\b(pause radio|stop radio|radio off|mute radio)\b/i.test(text)) {
     return { type: "radio", on: false };
   }
+  if (/\b(next station|skip station|radio next)\b/i.test(text)) {
+    return { type: "radio", id: "next", on: true };
+  }
+  if (/\b(previous station|last station|radio back)\b/i.test(text)) {
+    return { type: "radio", id: "prev", on: true };
+  }
   for (const st of PRESET_STATIONS) {
     const names = [st.name, st.id, ...(st.aliases ?? [])]
       .map((n) => n.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"))

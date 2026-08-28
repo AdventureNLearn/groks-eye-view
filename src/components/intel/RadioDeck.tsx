@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { Pause, Play, Plus, Radio, Trash2, X } from "lucide-react";
+import { Pause, Play, Plus, Radio, SkipBack, SkipForward, Trash2, X } from "lucide-react";
 import { readNowPlaying, searchRadioStations } from "@/lib/feeds/radio";
 import { attachRadioChain, type RadioChain } from "@/lib/intel/audioChain";
 import {
@@ -8,6 +8,7 @@ import {
   findStation,
   stationPlayUrls,
   useRadio,
+  type RadioGroup,
   type RadioStation,
 } from "@/lib/intel/radio";
 import { flash } from "@/lib/intel/store";
@@ -186,6 +187,8 @@ function RadioPicker({
   const [query, setQuery] = useState("");
   const [hits, setHits] = useState<RadioSearchHit[] | null>(null);
   const [searching, setSearching] = useState(false);
+  const [tab, setTab] = useState<RadioGroup | "rack">(station.group ?? "swamp");
+  const [needle, setNeedle] = useState("");
 
   async function onSearch(e: React.FormEvent) {
     e.preventDefault();
@@ -224,6 +227,7 @@ function RadioPicker({
     setUrl("");
     flash("Station added. Hitting play.");
     useRadio.getState().play(useRadio.getState().stationId);
+    setTab("rack");
   }
 
   function addHit(hit: RadioSearchHit) {
@@ -238,6 +242,7 @@ function RadioPicker({
     else {
       flash(`Added ${hit.name}`);
       useRadio.getState().play(useRadio.getState().stationId);
+      setTab("rack");
     }
   }
 
@@ -246,13 +251,29 @@ function RadioPicker({
     (buffering ? "Tuning…" : nowPlaying) ||
     [station.quality, station.blurb].filter(Boolean).join(" · ");
 
+  const q = needle.trim().toLowerCase();
+  const filtered = (list: RadioStation[]) =>
+    q
+      ? list.filter((s) =>
+          [s.name, s.id, s.blurb, ...(s.aliases ?? [])].join(" ").toLowerCase().includes(q),
+        )
+      : list;
+
+  const tabRows =
+    tab === "rack"
+      ? filtered(custom)
+      : filtered(PRESET_STATIONS.filter((s) => s.group === tab));
+  const searchRows = q
+    ? filtered([...PRESET_STATIONS, ...custom])
+    : tabRows;
+
   return (
     <aside
       className="panel radio-panel absolute top-32 right-3 left-3 z-20 overflow-y-auto p-3 sm:top-16 sm:left-auto md:top-20 md:right-4"
       role="dialog"
       aria-label="Radio tuner"
     >
-      <header className="mb-3 flex items-start justify-between gap-2">
+      <header className="mb-2 flex items-start justify-between gap-2">
         <div>
           <p className="kicker flex items-center gap-2">
             <Radio className="size-3" strokeWidth={1.75} />
@@ -270,7 +291,15 @@ function RadioPicker({
         </button>
       </header>
 
-      <div className="mb-3 flex items-center gap-2 rounded-sm bg-panel-2 p-2">
+      <div className="mb-3 flex items-center gap-1 rounded-sm bg-panel-2 p-2">
+        <button
+          type="button"
+          className="grid size-10 place-items-center rounded-sm"
+          aria-label="Previous station"
+          onClick={() => useRadio.getState().prev()}
+        >
+          <SkipBack className="size-4" strokeWidth={1.75} />
+        </button>
         <button
           type="button"
           className="grid size-11 place-items-center rounded-sm bg-accent text-accent-fg"
@@ -279,11 +308,19 @@ function RadioPicker({
         >
           {playing ? <Pause className="size-4" /> : <Play className="size-4" />}
         </button>
-        <div className="min-w-0 flex-1">
+        <button
+          type="button"
+          className="grid size-10 place-items-center rounded-sm"
+          aria-label="Next station"
+          onClick={() => useRadio.getState().next()}
+        >
+          <SkipForward className="size-4" strokeWidth={1.75} />
+        </button>
+        <div className="min-w-0 flex-1 px-1">
           <p className="truncate font-display text-base font-semibold tracking-wide">{station.name}</p>
           <p className="truncate text-xs text-muted">{subtitle}</p>
         </div>
-        <label className="flex w-24 flex-col gap-1">
+        <label className="flex w-20 flex-col gap-1">
           <span className="kicker">Vol</span>
           <input
             type="range"
@@ -297,30 +334,50 @@ function RadioPicker({
         </label>
       </div>
 
-      {PRESET_GROUPS.map((g) => {
-        const rows = PRESET_STATIONS.filter((s) => s.group === g.id);
-        if (!rows.length) return null;
-        return (
-          <div key={g.id} className="mb-3">
-            <p className="kicker mb-1">{g.label}</p>
-            <ul className="grid gap-1">
-              {rows.map((s) => (
-                <StationRow key={s.id} station={s} active={s.id === station.id} />
-              ))}
-            </ul>
-          </div>
-        );
-      })}
+      <input
+        value={needle}
+        onChange={(e) => setNeedle(e.target.value)}
+        placeholder="Filter the rack"
+        className="mb-2 min-h-11 w-full rounded-sm bg-panel-2 px-3 text-sm text-fg outline-none placeholder:text-subtle"
+        aria-label="Filter stations"
+      />
 
-      {custom.length > 0 && (
-        <>
-          <p className="kicker mt-1 mb-1">Your rack</p>
-          <ul className="mb-3 grid gap-1">
-            {custom.map((s) => (
-              <StationRow key={s.id} station={s} active={s.id === station.id} removable />
-            ))}
-          </ul>
-        </>
+      {!q && (
+        <div className="mb-2 flex flex-wrap gap-1">
+          {PRESET_GROUPS.map((g) => (
+            <button
+              key={g.id}
+              type="button"
+              data-on={tab === g.id ? "true" : "false"}
+              onClick={() => setTab(g.id)}
+              className={`min-h-9 rounded-sm px-2 text-xs ${
+                tab === g.id ? "bg-accent text-accent-fg" : "bg-panel-2 text-muted"
+              }`}
+            >
+              {g.label}
+            </button>
+          ))}
+          {custom.length > 0 && (
+            <button
+              type="button"
+              onClick={() => setTab("rack")}
+              className={`min-h-9 rounded-sm px-2 text-xs ${
+                tab === "rack" ? "bg-accent text-accent-fg" : "bg-panel-2 text-muted"
+              }`}
+            >
+              Yours
+            </button>
+          )}
+        </div>
+      )}
+
+      <ul className="mb-3 grid grid-cols-2 gap-1">
+        {searchRows.map((s) => (
+          <StationRow key={s.id} station={s} active={s.id === station.id} removable={s.kind === "custom"} />
+        ))}
+      </ul>
+      {searchRows.length === 0 && (
+        <p className="mb-3 text-xs text-muted">Nothing in this rack.</p>
       )}
 
       <p className="kicker mb-1">Find a station</p>
@@ -413,6 +470,7 @@ function RadioPicker({
     </aside>
   );
 }
+
 
 function StationRow({
   station,

@@ -1,6 +1,6 @@
 import { create } from "zustand";
 
-export type RadioGroup = "swamp" | "classic" | "mix";
+export type RadioGroup = "swamp" | "classic" | "country" | "mix";
 
 export type RadioStation = {
   id: string;
@@ -60,6 +60,41 @@ export const PRESET_STATIONS: RadioStation[] = [
     "zz top",
   ]),
   exclusive("theband", "The Band", "The night they drove old Dixie down.", "theband", "swamp", []),
+  exclusive("littlefeat", "Little Feat", "Dixie chicken, orbital gravy.", "littlefeat", "swamp", [
+    "little feat",
+  ]),
+  exclusive("doobies", "Doobie Brothers", "Listen to the globe.", "doobiebrothers", "swamp", [
+    "doobie",
+    "doobies",
+  ]),
+  exclusive("miller", "Steve Miller", "The Joker, still in the air.", "stevemillerband", "swamp", [
+    "steve miller",
+  ]),
+  exclusive("crowes", "Black Crowes", "Twice as hard, twice as high.", "theblackcrowes", "swamp", [
+    "black crowes",
+    "crowes",
+  ]),
+  exclusive("badco", "Bad Company", "Feel like making radio.", "badcompany", "swamp", [
+    "bad company",
+    "badco",
+  ]),
+  exclusive("airplane", "Jefferson Airplane", "White rabbit over the terminator.", "jeffersonairplane", "swamp", [
+    "jefferson airplane",
+    "airplane",
+  ]),
+  exclusive("santana", "Santana", "Oye como va, from orbit.", "santana", "swamp", []),
+  exclusive("clapton", "Clapton", "Slowhand, fast globe.", "ericclapton", "swamp", [
+    "clapton",
+    "eric clapton",
+  ]),
+  exclusive("hendrix", "Hendrix", "Purple haze on the dayside.", "hendrix", "swamp", [
+    "hendrix",
+    "jimi",
+  ]),
+  exclusive("petty", "Tom Petty", "Even the losers get lucky with a globe.", "tompetty", "swamp", [
+    "petty",
+    "tom petty",
+  ]),
   exclusive("neilyoung", "Neil Young", "Rust never sleeps. The globe does not either.", "neilyoung", "swamp", [
     "neil young",
   ]),
@@ -68,18 +103,6 @@ export const PRESET_STATIONS: RadioStation[] = [
     "stills",
     "nash",
   ]),
-  exclusive("cash", "Johnny Cash", "The man in black, still walking.", "johnnycash", "swamp", [
-    "johnny cash",
-    "cash",
-  ]),
-  exclusive("dylan", "Bob Dylan", "Tangled up in the ionosphere.", "bobdylan", "swamp", [
-    "dylan",
-    "bob dylan",
-  ]),
-  exclusive("petty", "Tom Petty", "Even the losers get lucky with a globe.", "tompetty", "swamp", [
-    "petty",
-    "tom petty",
-  ]),
   exclusive("floyd", "Pink Floyd", "Comfortably numb over the Pacific.", "pinkfloyd", "classic", [
     "pink floyd",
     "floyd",
@@ -87,14 +110,13 @@ export const PRESET_STATIONS: RadioStation[] = [
   exclusive("zeppelin", "Led Zeppelin", "Stairway, no elevators.", "ledzeppelin", "classic", [
     "zeppelin",
     "zoso",
+    "led zeppelin",
   ]),
   exclusive("stones", "Rolling Stones", "Gimme shelter, keep the globe spinning.", "rollingstones", "classic", [
     "stones",
     "rolling stones",
   ]),
-  exclusive("beatles", "The Beatles", "Across the universe, literally.", "beatles", "classic", [
-    "beatles",
-  ]),
+  exclusive("beatles", "The Beatles", "Across the universe, literally.", "beatles", "classic", []),
   exclusive("eagles", "Eagles", "Hotel California has a window seat.", "eagles", "classic", []),
   exclusive("fleetwood", "Fleetwood Mac", "Landslide, but make it orbital.", "fleetwoodmac", "classic", [
     "fleetwood",
@@ -116,6 +138,46 @@ export const PRESET_STATIONS: RadioStation[] = [
   exclusive("seger", "Bob Seger", "Night moves over the Midwest.", "bobseger", "classic", [
     "seger",
     "bob seger",
+  ]),
+  exclusive("who", "The Who", "Teenage wasteland, global edition.", "thewho", "classic", [
+    "the who",
+  ]),
+  exclusive("doors", "The Doors", "Break on through to the other hemisphere.", "doors", "classic", [
+    "the doors",
+  ]),
+  exclusive("rush", "Rush", "Tom Sawyer would want a bigger map.", "rush", "classic", []),
+  exclusive("straits", "Dire Straits", "Sultans of swing, still swinging.", "direstraits", "classic", [
+    "dire straits",
+  ]),
+  exclusive("cream", "Cream", "Sunshine of your globe.", "cream", "classic", []),
+  exclusive("boston", "Boston", "More than a feeling, less than Mach 1.", "boston", "classic", []),
+  exclusive("journey", "Journey", "Don't stop, believing, orbiting.", "journey", "classic", []),
+  exclusive("heart", "Heart", "Barracuda in the ionosphere.", "heart", "classic", []),
+  exclusive("cash", "Johnny Cash", "The man in black, still walking.", "johnnycash", "country", [
+    "johnny cash",
+    "cash",
+  ]),
+  exclusive("dylan", "Bob Dylan", "Tangled up in the ionosphere.", "bobdylan", "country", [
+    "dylan",
+    "bob dylan",
+  ]),
+  exclusive("willie", "Willie Nelson", "On the road again, around the planet.", "willienelson", "country", [
+    "willie",
+    "willie nelson",
+  ]),
+  exclusive("waylon", "Waylon", "Ladies love outlaws. Globes do too.", "waylonjennings", "country", [
+    "waylon",
+  ]),
+  exclusive("haggard", "Merle Haggard", "Working man, night shift over Kansas.", "merlehaggard", "country", [
+    "haggard",
+    "merle",
+  ]),
+  exclusive("hank", "Hank Williams", "I'm so lonesome I could fly.", "hankwilliams", "country", [
+    "hank",
+    "hank williams",
+  ]),
+  exclusive("jones", "George Jones", "He stopped loving her, we did not stop looking.", "georgejones", "country", [
+    "george jones",
   ]),
   {
     id: "seventies",
@@ -152,8 +214,9 @@ export const PRESET_STATIONS: RadioStation[] = [
 ];
 
 export const PRESET_GROUPS: { id: RadioGroup; label: string }[] = [
-  { id: "swamp", label: "Swamp & dirt" },
-  { id: "classic", label: "Classic rock" },
+  { id: "swamp", label: "Swamp" },
+  { id: "classic", label: "Classic" },
+  { id: "country", label: "Country" },
   { id: "mix", label: "Mixes" },
 ];
 
@@ -178,6 +241,8 @@ type RadioState = {
   play: (id?: string) => void;
   pause: () => void;
   toggle: () => void;
+  next: () => void;
+  prev: () => void;
   setVolume: (n: number) => void;
   setError: (s: string) => void;
   setNowPlaying: (s: string) => void;
@@ -242,9 +307,12 @@ export function findStation(id: string, custom: RadioStation[]): RadioStation | 
 export function matchStation(text: string, custom: RadioStation[] = []): RadioStation | undefined {
   const q = text.trim().toLowerCase();
   if (!q) return undefined;
-  return allStations(custom).find((s) => {
-    if (s.id === q || s.name.toLowerCase() === q) return true;
-    return (s.aliases ?? []).some((a) => a.toLowerCase() === q || q.includes(a.toLowerCase()));
+  const all = allStations(custom);
+  const exact = all.find((s) => s.id === q || s.name.toLowerCase() === q);
+  if (exact) return exact;
+  return all.find((s) => {
+    const keys = [s.name, s.id, ...(s.aliases ?? [])].map((a) => a.toLowerCase());
+    return keys.some((k) => k.length >= 3 && (q === k || q.includes(k)));
   });
 }
 
@@ -288,6 +356,20 @@ export const useRadio = create<RadioState>((set, get) => ({
     const s = get();
     if (s.playing) set({ playing: false, buffering: false });
     else get().play();
+  },
+  next: () => {
+    const list = allStations(get().custom);
+    if (!list.length) return;
+    const i = list.findIndex((s) => s.id === get().stationId);
+    const n = list[(i + 1) % list.length];
+    get().play(n.id);
+  },
+  prev: () => {
+    const list = allStations(get().custom);
+    if (!list.length) return;
+    const i = list.findIndex((s) => s.id === get().stationId);
+    const n = list[(i - 1 + list.length) % list.length];
+    get().play(n.id);
   },
   setVolume: (n) => {
     const volume = Math.min(1, Math.max(0, n));

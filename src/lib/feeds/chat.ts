@@ -57,10 +57,10 @@ Use the operator's current globe context (place, camera, tracked contact, layers
 
 You may move the globe or punch the radio ONLY when they asked, by appending exactly one last line:
 <<ACTION:{"type":"flyTo","q":"Tokyo"}>>
-Allowed type values: flyTo (q), trackNearest (kind: flight|vessel|satellite|iss), style (style: normal|crt|nvg|flir|noir|snow), layer (id + on), cockpit (on), radio (id: ccr|seventies|bootliquor, on), reset, next.
+Allowed type values: flyTo (q), trackNearest (kind: flight|vessel|satellite|iss), style (style: normal|crt|nvg|flir|noir|snow), layer (id + on), cockpit (on), radio (id: station id such as ccr, skynyrd, floyd, zeppelin, cash, seventies, or next/prev; on), reset, next.
 Do not emit ACTION for a normal question.
 
-Radio: the Creedence dial is Exclusive Radio's public CCR internet stream — a radio station, not a download.`;
+Radio: artist channels are Exclusive Radio public internet streams. Mixes are SomaFM. Not downloads. If they name a band on the rack, punch that station.`;
 
 function clipContext(ctx: GlobeContext): GlobeContext {
   return {

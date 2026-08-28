@@ -79,6 +79,16 @@ export async function applyAction(action: CommandAction, raw = "") {
     if (action.on === false) {
       useRadio.getState().pause();
       flash("Radio off");
+    } else if (action.id === "next") {
+      useRadio.getState().next();
+      const id = useRadio.getState().stationId;
+      const st = findStation(id, useRadio.getState().custom);
+      flash(st ? `${st.name} on the wire` : "Next station");
+    } else if (action.id === "prev") {
+      useRadio.getState().prev();
+      const id = useRadio.getState().stationId;
+      const st = findStation(id, useRadio.getState().custom);
+      flash(st ? `${st.name} on the wire` : "Previous station");
     } else {
       useRadio.getState().play(action.id);
       const id = action.id ?? useRadio.getState().stationId;
