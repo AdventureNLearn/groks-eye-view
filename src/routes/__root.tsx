@@ -3,7 +3,7 @@ import { AuthProvider } from "@/lib/auth/provider";
 import { PreviewHostBridge } from "@/components/preview-host-bridge";
 import appCss from "../styles.css?url";
 
-const APP_NAME = "God's Eye View";
+const APP_NAME = "Grok's Eye View";
 
 export const Route = createRootRoute({
   head: () => ({
@@ -14,7 +14,7 @@ export const Route = createRootRoute({
       {
         name: "description",
         content:
-          "A spy-satellite simulator in your browser — live aircraft, ships, satellites, earthquakes and fires on a 3D globe. The data is real.",
+          "Grok's Eye View — a meme spy-satellite cockpit over a real 3D Earth. Public flights, sats, quakes, fires. Inspired by Bilawal Sidhu’s God’s Eye View.",
       },
       { name: "theme-color", content: "#07090c" },
     ],

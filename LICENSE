@@ -2,11 +2,11 @@ MIT License
 
 Copyright (c) 2026 AdventureNLearn
 
-This repository is a web recreation inspired by God's Eye View
+This repository (Grok's Eye View) is a web recreation inspired by God's Eye View
 (https://github.com/bilawalsidhu/gods-eye-view), Copyright (c) 2026
 Bilawal Sidhu, also released under the MIT License. The original is
-the source of the concept, name, and cockpit language. This codebase
-was written separately and is not a copy of that source tree.
+the source of the concept and cockpit language. This codebase was
+written separately and is not a copy of that source tree.
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal

@@ -15,7 +15,7 @@ export async function playScene(id: SceneId) {
     s.setLayer("satellites", { on: true, freshness: LAYER_META.satellites.freshness });
     engine.setStyle("noir");
     engine.resetGlobe();
-    flash("Orbital Watch · CelesTrak");
+    flash("Staring at space. ISS incoming.");
     await wait(1600);
     engine.trackNearest("iss");
     return;
@@ -26,7 +26,7 @@ export async function playScene(id: SceneId) {
     engine.setStyle("nvg");
     engine.setMapSource("night");
     await engine.lookupPlace("New York");
-    flash("Night Watch · live contacts");
+    flash("Night goggles. NYC corridor.");
     await wait(1400);
     engine.trackNearest("flight");
     return;
@@ -37,5 +37,5 @@ export async function playScene(id: SceneId) {
   engine.setStyle("flir");
   engine.flyTo(-119.4, 36.7, 1_100_000);
   s.setPlace("California");
-  flash("Fire Line · USGS + NASA EONET");
+  flash("It's fine. California is glowing.");
 }

@@ -10,7 +10,7 @@ import type {
 } from "./types";
 import { LAYER_META } from "./types";
 
-const FIRST_RUN_KEY = "gev:hide-first-run";
+const FIRST_RUN_KEY = "grok-eye:hide-first-run";
 
 export type LayerState = {
   on: boolean;
@@ -98,7 +98,7 @@ export const useIntel = create<IntelState>((set) => ({
   cleanUi: false,
   firstRun: true,
   command: "",
-  commandHint: "Take me to Tokyo · track nearest aircraft · night vision",
+  commandHint: "yo tokyo · find a plane · night vision",
   toast: "",
   placeName: "Earth",
   cam: { lat: 20, lon: -30, height: 20_000_000, heading: 0 },

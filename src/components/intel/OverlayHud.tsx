@@ -145,9 +145,9 @@ export function OverlayHud() {
         <div className="absolute inset-0 z-30 flex items-center justify-center bg-void pointer-events-auto">
           <div className="scanline absolute inset-0 opacity-40" />
           <div className="relative text-center px-6">
-            <p className="kicker">Initializing</p>
+            <p className="kicker">Waking the all-seeing meme</p>
             <h1 className="font-display mt-2 text-4xl font-semibold tracking-wide">
-              GOD'S EYE <span className="text-accent">VIEW</span>
+              <span className="text-accent">GROK'S</span> EYE VIEW
             </h1>
             <p className="hud-num mt-3 text-xs text-muted">{boot}</p>
           </div>
@@ -158,9 +158,9 @@ export function OverlayHud() {
         <>
           <header className="intel-pass absolute top-3 left-3 right-3 flex items-start justify-between gap-3 md:top-4 md:left-4 md:right-4">
             <div className="pointer-events-none min-w-0">
-              <p className="kicker">No place left behind</p>
+              <p className="kicker">The sky is not a privacy policy</p>
               <h1 className="font-display text-3xl leading-none font-semibold tracking-wide">
-                GOD'S EYE <span className="text-accent">VIEW</span>
+                <span className="text-accent">GROK'S</span> EYE VIEW
               </h1>
               <p className="hud-num mt-1 truncate text-xs text-muted">
                 {zulu} · {place} · {liveCount} contacts
@@ -168,7 +168,7 @@ export function OverlayHud() {
             </div>
             <div className="pointer-events-auto flex items-center gap-2">
               <div className="panel hidden px-3 py-2 sm:block">
-                <p className="kicker">Active style</p>
+                <p className="kicker">Vibe</p>
                 <p className="hud-num text-sm text-accent">{style.toUpperCase()}</p>
               </div>
               <button
@@ -187,7 +187,7 @@ export function OverlayHud() {
                 aria-label="Share view"
                 onClick={async () => {
                   const ok = await copyShareUrl();
-                  flash(ok ? "Share link copied" : "Share link ready");
+                  flash(ok ? "Copied. Send it to the group chat." : "Share link ready");
                 }}
               >
                 <Share2 className="size-4" strokeWidth={1.75} />
@@ -211,7 +211,7 @@ export function OverlayHud() {
           >
             <div className="mb-2 flex items-center justify-between">
               <span className="kicker flex items-center gap-2">
-                <Layers className="size-3" /> Data layers
+                <Layers className="size-3" /> Open sources
               </span>
             </div>
             <ul className="grid gap-1">
@@ -303,7 +303,7 @@ export function OverlayHud() {
                 </button>
               ))}
             </div>
-            <p className="kicker mt-3">Missions</p>
+            <p className="kicker mt-3">Go look</p>
             <div className="mt-1 grid gap-1">
               {SCENE_META.map((sc) => (
                 <button
@@ -389,7 +389,7 @@ export function OverlayHud() {
         <div className="pointer-events-none absolute inset-0">
           <div className="cockpit-reticle" />
           <div className="absolute top-20 left-1/2 -translate-x-1/2 text-center">
-            <p className="kicker">First person</p>
+            <p className="kicker">You are the plane now</p>
             <p className="font-display text-2xl font-semibold tracking-wide">{tracked.name}</p>
           </div>
           <div className="absolute bottom-28 left-1/2 flex -translate-x-1/2 items-end gap-8">
@@ -498,8 +498,8 @@ export function OverlayHud() {
         </div>
       )}
 
-      <p className="pointer-events-auto absolute bottom-2 left-3 z-10 max-w-[min(92vw,28rem)] text-xs text-subtle">
-        Public data · not for navigation · inspired by{" "}
+      <p className="pointer-events-auto absolute bottom-2 left-3 z-10 max-w-[min(92vw,32rem)] text-xs text-subtle">
+        Public data · not for navigation · Grok’s Eye View, inspired by{" "}
         <a
           href="https://github.com/bilawalsidhu/gods-eye-view"
           target="_blank"

@@ -138,7 +138,7 @@ export async function applyAction(action: CommandAction, raw = "") {
       break;
     }
     case "unknown":
-      flash(raw ? `Unparsed: “${raw}”` : "Command not recognized");
+      flash(raw ? `Grok shrugged at “${raw}”. Try Tokyo.` : "Grok shrugged.");
       break;
   }
 }

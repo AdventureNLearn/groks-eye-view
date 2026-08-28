@@ -1,24 +1,24 @@
-# God's Eye View
+# Grok's Eye View
 
-A spy-satellite simulator in the browser — live aircraft, modeled ships,
-satellites, earthquakes, fires, and launches on a 3D globe. The data is public.
-The cockpit is the point.
+A meme spy-satellite cockpit over a real 3D Earth. Live aircraft, modeled ships,
+satellites, quakes, fires, launches. The data is public. Grok is just being
+dramatic about it.
 
 **Inspired by [Bilawal Sidhu](https://github.com/bilawalsidhu)’s
 [God's Eye View](https://github.com/bilawalsidhu/gods-eye-view)** (MIT).
-The original is the source of the concept, the name, and the feeling. This
-repository is a separate web recreation, not a copy of that source tree. If
-you like this, go star his project.
+The original is the source of the idea and the feeling. This is a separate web
+recreation with a Grok-shaped personality, not a copy of that source tree.
+If you like the concept, go star his project.
 
 > Public data · not for navigation.
 
 ## Try it
 
-- First mission: **Live contacts**, **Space missions**, **Environmental**, or explore empty
+- First look: **Planes, please**, **Space junk**, **The planet is yelling**, or just the globe
 - Drag to orbit, scroll to zoom, click a contact to lock it
-- **Cockpit** for first person · **D** detection boxes · **1–6** optical / CRT / NVG / FLIR / Noir / Snow
-- Command bar: `take me to Tokyo`, `track nearest aircraft`, `night vision`
-- Share copies the camera and layers
+- **Cockpit** = you are the plane now · **D** detection boxes · **1–6** optical / CRT / NVG / FLIR / Noir / Snow
+- Command bar: `yo tokyo`, `find a plane`, `night vision`
+- Share copies the camera for the group chat
 
 ## Run
 
@@ -39,7 +39,7 @@ TanStack Start · React 19 · CesiumJS · satellite.js · Zustand
 
 ## Credits
 
-See [CREDITS.md](./CREDITS.md). Original project:
+See [CREDITS.md](./CREDITS.md). Original:
 [github.com/bilawalsidhu/gods-eye-view](https://github.com/bilawalsidhu/gods-eye-view).
 
 ## License

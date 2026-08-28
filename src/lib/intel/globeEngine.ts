@@ -1221,7 +1221,7 @@ export async function bootGlobe(container: HTMLDivElement): Promise<() => void> 
   }
 
   useIntel.getState().setReady(true);
-  flash("Globe online · public feeds only");
+  flash("We're in. Everything here is public.");
   (window as unknown as { __gevReady?: boolean }).__gevReady = true;
 
   const st = useIntel.getState();

@@ -2,15 +2,14 @@
 
 ## God's Eye View — original
 
-This app exists because [Bilawal Sidhu](https://github.com/bilawalsidhu) built
-**[God's Eye View](https://github.com/bilawalsidhu/gods-eye-view)** and released
-it under the MIT License.
+**Grok's Eye View** exists because [Bilawal Sidhu](https://github.com/bilawalsidhu)
+built **[God's Eye View](https://github.com/bilawalsidhu/gods-eye-view)** and
+released it under the MIT License.
 
-The original is the source of the idea, the name, and the feeling of a public
-spy-satellite cockpit. If you like this, go star and support that project.
-
-This repository is a separate web recreation (Cesium + TanStack Start). It does
-not copy the original source tree.
+The original is the source of the idea and the public-cockpit feeling. This
+repo is a separate web recreation with a Grok-shaped personality. It does not
+copy the original source tree. If you like this, go star and support that
+project.
 
 ## Live public sources
 

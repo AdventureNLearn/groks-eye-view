@@ -177,7 +177,7 @@ export const STYLE_META: { id: StyleId; label: string; key: string }[] = [
 ];
 
 export const SCENE_META: { id: SceneId; label: string }[] = [
-  { id: "orbital", label: "Orbital Watch" },
-  { id: "night", label: "Night Watch" },
-  { id: "fire", label: "Fire Line" },
+  { id: "orbital", label: "Stare at space" },
+  { id: "night", label: "Night goggles" },
+  { id: "fire", label: "It's fine" },
 ];

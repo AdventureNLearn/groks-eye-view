@@ -5,26 +5,26 @@ import { flash, useIntel } from "@/lib/intel/store";
 const CHOICES = [
   {
     id: "contacts" as const,
-    title: "Live contacts",
-    copy: "Aircraft and modeled vessels on real corridors",
+    title: "Planes, please",
+    copy: "Live ADS-B plus fake boats on real routes",
     icon: Radar,
   },
   {
     id: "space" as const,
-    title: "Space missions",
-    copy: "ISS, catalog satellites, upcoming launches",
+    title: "Space junk",
+    copy: "ISS, catalog sats, people lighting money on fire",
     icon: Rocket,
   },
   {
     id: "environment" as const,
-    title: "Environmental",
-    copy: "USGS earthquakes and NASA wildfire events",
+    title: "The planet is yelling",
+    copy: "USGS quakes and NASA fire events",
     icon: Flame,
   },
   {
     id: "explore" as const,
-    title: "Explore manually",
-    copy: "Begin with a clean globe",
+    title: "Just the globe",
+    copy: "Empty Earth. You do the clicking.",
     icon: Globe,
   },
 ];
@@ -43,21 +43,21 @@ export function FirstRun() {
       setLayer("vessels", { on: true, freshness: "simulated" });
       engine?.flyTo(-74.0, 40.6, 420_000);
       place = "New York corridor";
-      flash("Live contacts · OpenSky + modeled AIS");
+      flash("Planes unlocked. The backyard is public now.");
     } else if (id === "space") {
       setLayer("satellites", { on: true, freshness: "live" });
       setLayer("launches", { on: true, freshness: "live" });
       window.setTimeout(() => engine?.trackNearest("iss"), 1400);
       place = "Orbital";
-      flash("Space missions · CelesTrak + Launch Library");
+      flash("Space junk incoming.");
     } else if (id === "environment") {
       setLayer("earthquakes", { on: true, freshness: "live" });
       setLayer("fires", { on: true, freshness: "live" });
       engine?.flyTo(-119.4, 36.7, 1_100_000);
       place = "California";
-      flash("Environmental · USGS + NASA EONET");
+      flash("Earth is having a moment.");
     } else {
-      flash("Explore · enable layers when you want them");
+      flash("Fine. Empty globe. Touch orbital grass.");
     }
     dismiss(persist.current);
     if (place) useIntel.getState().setPlace(place);
@@ -69,16 +69,16 @@ export function FirstRun() {
       role="dialog"
       aria-labelledby="first-run-title"
     >
-      <p className="kicker">Mission control · first launch</p>
+      <p className="kicker">Unofficial orbital shitpost</p>
       <h2
         id="first-run-title"
         className="font-display mt-2 text-2xl font-semibold tracking-tight text-fg"
       >
-        Choose your first view
+        Where we looking first
       </h2>
       <p className="mt-2 text-sm leading-snug text-muted text-pretty">
-        It feels like a forbidden cockpit — then you realize the sources are public
-        and the data is real.
+        Feels classified. It is not. Every feed is public — Grok is just being
+        dramatic about it.
       </p>
       <div className="mt-4 grid gap-2">
         {CHOICES.map((c) => {
