@@ -24,7 +24,6 @@ import { flash, hydrateFirstRun, useIntel } from "@/lib/intel/store";
 import { useComms } from "@/lib/intel/comms";
 import { findStation, PRESET_STATIONS, useRadio } from "@/lib/intel/radio";
 import { getWeather } from "@/lib/feeds/world";
-import { getFeedKeys } from "@/lib/feeds/flights";
 import {
   LAYER_META,
   SCENE_META,
@@ -80,16 +79,12 @@ export function OverlayHud() {
   const inputRef = useRef<HTMLInputElement>(null);
   const [zulu, setZulu] = useState("");
   const [drawerOpen, setDrawerOpen] = useState(false);
-  const [feedKeys, setFeedKeys] = useState({ opensky: false, ais: false, firms: false });
 
   useEffect(() => {
     hydrateFirstRun();
     const tick = () => setZulu(zuluNow());
     tick();
     const id = window.setInterval(tick, 1000);
-    void getFeedKeys()
-      .then((k) => setFeedKeys(k))
-      .catch(() => {});
     return () => window.clearInterval(id);
   }, []);
 
@@ -397,11 +392,6 @@ export function OverlayHud() {
                 );
               })}
             </ul>
-            <p className="mt-3 text-xs leading-snug text-subtle">
-              {feedKeys.opensky && feedKeys.ais && feedKeys.firms
-                ? "OpenSky, AISStream, and FIRMS keys are live."
-                : "Free keys unlock the blocked streams: OpenSky (global flights), AISStream (live boats), NASA FIRMS (thermal fires)."}
-            </p>
             <p className="kicker mt-3">Display</p>
             <div className="mt-1 grid grid-cols-2 gap-1">
               <Toggle
