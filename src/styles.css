@@ -134,6 +134,11 @@
   inset: 0;
 }
 
+.flat-map-marks {
+  z-index: 2;
+  pointer-events: none;
+}
+
 .flat-map-tiles img {
   position: absolute;
   top: 0;
@@ -150,13 +155,54 @@
   position: absolute;
   top: 0;
   left: 0;
+  display: grid;
+  place-items: center;
+  width: 16px;
+  height: 16px;
+  margin: -8px 0 0 -8px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  pointer-events: auto;
+  color: var(--mark, var(--color-flight));
+}
+
+.flat-mark-dot {
   width: 10px;
   height: 10px;
-  margin: -5px 0 0 -5px;
-  border: 1px solid rgb(7 9 12 / 0.8);
+  border: 1px solid rgb(7 9 12 / 0.85);
   border-radius: var(--radius-xl);
-  box-shadow: 0 0 8px currentColor;
-  pointer-events: auto;
+  background: var(--mark, var(--color-flight));
+  box-shadow: 0 0 10px var(--mark, var(--color-flight));
+}
+
+.flat-mark[data-kind="vessel"] .flat-mark-dot,
+.flat-mark[data-kind="satellite"] .flat-mark-dot {
+  width: 12px;
+  height: 12px;
+}
+
+.flat-mark-lab {
+  position: absolute;
+  left: 14px;
+  top: 50%;
+  display: none;
+  max-width: 9rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  transform: translateY(-50%);
+  padding: 1px 4px;
+  border-radius: var(--radius-xs);
+  background: rgb(14 18 24 / 0.82);
+  color: var(--color-fg);
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  line-height: 1.2;
+}
+
+.flat-mark-lab.is-on {
+  display: block;
 }
 
 .flat-map[data-style="nvg"] .flat-map-tiles {

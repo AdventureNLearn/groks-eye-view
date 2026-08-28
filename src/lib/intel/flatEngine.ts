@@ -1,9 +1,12 @@
-import { getEarthquakes, getFires, getIss, geocodePlace } from "@/lib/feeds/world";
-import { getFlights } from "@/lib/feeds/flights";
+import { getEarthquakes, getFires, getIss, getLaunches, getSatellites, geocodePlace } from "@/lib/feeds/world";
+import { getFlights, getMilitary } from "@/lib/feeds/flights";
+import { json2satrec, propagate, gstime, eciToGeodetic, degreesLat, degreesLong } from "satellite.js";
 import { flash, useIntel } from "./store";
 import { matchPreset } from "./locations";
 import { readShareHash } from "./share";
-import type { EngineApi, MapSourceId, StyleId, Tracked } from "./types";
+import { simulatedFlights } from "./simFlights";
+import { simulatedVessels } from "./vessels";
+import type { EngineApi, FlightSample, MapSourceId, SatCatalogItem, StyleId, Tracked } from "./types";
 import { LAYER_META } from "./types";
 
 const TILE = 256;
@@ -41,7 +44,45 @@ function tileBase(source: MapSourceId) {
   return ESRI;
 }
 
-type Mark = { id: string; lat: number; lon: number; label: string; kind: string; color: string };
+type Mark = {
+  id: string;
+  lat: number;
+  lon: number;
+  label: string;
+  kind: string;
+  color: string;
+};
+
+function satLatLon(item: SatCatalogItem): { lat: number; lon: number } | null {
+  try {
+    const rec = json2satrec({
+      OBJECT_NAME: item.rec.OBJECT_NAME,
+      OBJECT_ID: item.rec.OBJECT_ID,
+      EPOCH: item.rec.EPOCH,
+      MEAN_MOTION: item.rec.MEAN_MOTION,
+      ECCENTRICITY: item.rec.ECCENTRICITY,
+      INCLINATION: item.rec.INCLINATION,
+      RA_OF_ASC_NODE: item.rec.RA_OF_ASC_NODE,
+      ARG_OF_PERICENTER: item.rec.ARG_OF_PERICENTER,
+      MEAN_ANOMALY: item.rec.MEAN_ANOMALY,
+      NORAD_CAT_ID: item.rec.NORAD_CAT_ID,
+      ELEMENT_SET_NO: item.rec.ELEMENT_SET_NO,
+      BSTAR: item.rec.BSTAR,
+      MEAN_MOTION_DOT: item.rec.MEAN_MOTION_DOT,
+      MEAN_MOTION_DDOT: item.rec.MEAN_MOTION_DDOT,
+    });
+    const now = new Date();
+    const pv = propagate(rec, now);
+    if (!pv?.position) return null;
+    const geo = eciToGeodetic(pv.position, gstime(now));
+    const lat = degreesLat(geo.latitude);
+    const lon = degreesLong(geo.longitude);
+    if (!Number.isFinite(lat) || !Number.isFinite(lon)) return null;
+    return { lat, lon };
+  } catch {
+    return null;
+  }
+}
 
 export async function bootFlatMap(container: HTMLDivElement): Promise<() => void> {
   useIntel.getState().setBoot("Laying satellite tiles", 20);
@@ -125,28 +166,37 @@ export async function bootFlatMap(container: HTMLDivElement): Promise<() => void
   function renderMarks() {
     const seen = new Set<string>();
     const { w, h } = size();
+    const showLab = zoom >= 4.2;
     for (const m of marks) {
       const p = project(m.lon, m.lat);
-      if (p.x < -24 || p.y < -24 || p.x > w + 24 || p.y > h + 24) continue;
+      if (p.x < -28 || p.y < -28 || p.x > w + 28 || p.y > h + 28) continue;
       seen.add(m.id);
       let el = dots.get(m.id);
       if (!el) {
         el = document.createElement("button");
         el.type = "button";
         el.className = "flat-mark";
+        el.innerHTML = `<span class="flat-mark-dot"></span><span class="flat-mark-lab"></span>`;
+        const id = m.id;
         el.addEventListener("click", (e) => {
           e.stopPropagation();
-          const hit = marks.find((x) => x.id === m.id);
+          const hit = marks.find((x) => x.id === id);
           if (hit) select(hit);
         });
         dots.set(m.id, el);
         markLayer.appendChild(el);
       }
       el.dataset.kind = m.kind;
-      el.style.background = m.color;
+      el.style.setProperty("--mark", m.color);
       el.style.transform = `translate(${p.x}px, ${p.y}px)`;
       el.setAttribute("aria-label", m.label);
       el.title = m.label;
+      const lab = el.querySelector(".flat-mark-lab");
+      const named = m.kind === "satellite" || m.kind === "launch" || m.kind === "earthquake" || showLab;
+      if (lab) {
+        lab.textContent = named ? m.label : "";
+        lab.classList.toggle("is-on", named);
+      }
     }
     for (const [id, el] of dots) {
       if (seen.has(id)) continue;
@@ -310,51 +360,239 @@ export async function bootFlatMap(container: HTMLDivElement): Promise<() => void
     { passive: false },
   );
 
+  let loadGen = 0;
+
+  function seedLocal() {
+    const layers = useIntel.getState().layers;
+    const next: Mark[] = [...marks];
+    const keep = new Set(next.map((m) => m.id));
+    const add = (m: Mark) => {
+      if (keep.has(m.id)) return;
+      keep.add(m.id);
+      next.push(m);
+    };
+    if (layers.flights.on) {
+      for (const f of simulatedFlights()) {
+        add({
+          id: `flt-${f.id}`,
+          lat: f.lat,
+          lon: f.lon,
+          label: f.callsign || f.id,
+          kind: "flight",
+          color: "var(--color-flight)",
+        });
+      }
+      useIntel.getState().setLayer("flights", {
+        count: next.filter((m) => m.kind === "flight").length,
+        freshness: "simulated",
+        detail: "Simulated corridors",
+      });
+    }
+    if (layers.vessels.on) {
+      for (const v of simulatedVessels()) {
+        add({
+          id: v.id,
+          lat: v.lat,
+          lon: v.lon,
+          label: v.name,
+          kind: "vessel",
+          color: "var(--color-ship)",
+        });
+      }
+      useIntel.getState().setLayer("vessels", {
+        count: next.filter((m) => m.kind === "vessel").length,
+        freshness: "simulated",
+        detail: LAYER_META.vessels.source,
+      });
+    }
+    marks = next;
+    renderMarks();
+  }
+
   async function refreshMarks() {
     if (destroyed) return;
+    const my = ++loadGen;
     const layers = useIntel.getState().layers;
     const next: Mark[] = [];
-    try {
-      if (layers.flights.on) {
+
+    if (layers.flights.on) {
+      let live: FlightSample[] = [];
+      let freshness: "live" | "delayed" | "simulated" | "error" = "simulated";
+      let detail = "Simulated corridors";
+      try {
         const data = await getFlights();
-        for (const f of (data.flights ?? []).slice(0, 80)) {
+        live = data.flights ?? [];
+        if (live.length) {
+          freshness = data.freshness === "error" ? "simulated" : data.freshness;
+          detail = data.source;
+        }
+      } catch {
+        live = [];
+      }
+      const samples = live.length > 0 ? live.slice(0, 140) : simulatedFlights();
+      for (const f of samples) {
+        next.push({
+          id: `flt-${f.id}`,
+          lat: f.lat,
+          lon: f.lon,
+          label: f.callsign || f.id,
+          kind: "flight",
+          color: "var(--color-flight)",
+        });
+      }
+      useIntel.getState().setLayer("flights", {
+        count: samples.length,
+        freshness: live.length > 0 ? freshness : "simulated",
+        detail: live.length > 0 ? detail : "Simulated corridors · live feed unavailable",
+      });
+    } else {
+      useIntel.getState().setLayer("flights", { count: 0, freshness: "off" });
+    }
+
+    if (layers.military.on) {
+      try {
+        const data = await getMilitary();
+        const rows = (data.flights ?? []).slice(0, 80);
+        for (const f of rows) {
           next.push({
-            id: `flt-${f.id}`,
+            id: `mil-${f.id}`,
             lat: f.lat,
             lon: f.lon,
             label: f.callsign || f.id,
-            kind: f.military ? "military" : "flight",
-            color: f.military ? "#e8b86d" : "#7ec8e8",
+            kind: "military",
+            color: "var(--color-mil)",
           });
         }
+        useIntel.getState().setLayer("military", {
+          count: rows.length,
+          freshness: data.freshness,
+          detail: data.source,
+        });
+      } catch (err) {
+        useIntel.getState().setLayer("military", {
+          count: 0,
+          freshness: "error",
+          detail: err instanceof Error ? err.message : "Military feed failed",
+        });
       }
-      if (layers.earthquakes.on) {
+    } else {
+      useIntel.getState().setLayer("military", { count: 0, freshness: "off" });
+    }
+
+    if (layers.vessels.on) {
+      const rows = simulatedVessels();
+      for (const v of rows) {
+        next.push({
+          id: v.id,
+          lat: v.lat,
+          lon: v.lon,
+          label: v.name,
+          kind: "vessel",
+          color: "var(--color-ship)",
+        });
+      }
+      useIntel.getState().setLayer("vessels", {
+        count: rows.length,
+        freshness: "simulated",
+        detail: LAYER_META.vessels.source,
+      });
+    } else {
+      useIntel.getState().setLayer("vessels", { count: 0, freshness: "off" });
+    }
+
+    if (layers.earthquakes.on) {
+      try {
         const data = await getEarthquakes();
-        for (const q of (data.items ?? []).slice(0, 40)) {
+        const rows = (data.items ?? []).slice(0, 80);
+        for (const q of rows) {
           next.push({
             id: `eq-${q.id}`,
             lat: q.lat,
             lon: q.lon,
             label: `M${q.mag.toFixed(1)} ${q.title}`,
             kind: "earthquake",
-            color: "#e36d6d",
+            color: "var(--color-quake)",
           });
         }
+        useIntel.getState().setLayer("earthquakes", {
+          count: rows.length,
+          freshness: data.freshness,
+          detail: data.source,
+        });
+      } catch (err) {
+        useIntel.getState().setLayer("earthquakes", {
+          count: 0,
+          freshness: "error",
+          detail: err instanceof Error ? err.message : "USGS failed",
+        });
       }
-      if (layers.fires.on) {
+    } else {
+      useIntel.getState().setLayer("earthquakes", { count: 0, freshness: "off" });
+    }
+
+    if (layers.fires.on) {
+      try {
         const data = await getFires();
-        for (const f of (data.items ?? []).slice(0, 40)) {
+        const rows = (data.items ?? []).slice(0, 80);
+        for (const f of rows) {
           next.push({
             id: `fire-${f.id}`,
             lat: f.lat,
             lon: f.lon,
             label: f.title || "Fire",
             kind: "fire",
-            color: "#e8b86d",
+            color: "var(--color-fire)",
           });
         }
+        useIntel.getState().setLayer("fires", {
+          count: rows.length,
+          freshness: data.freshness,
+          detail: data.source,
+        });
+      } catch (err) {
+        useIntel.getState().setLayer("fires", {
+          count: 0,
+          freshness: "error",
+          detail: err instanceof Error ? err.message : "EONET failed",
+        });
       }
-      if (layers.satellites.on) {
+    } else {
+      useIntel.getState().setLayer("fires", { count: 0, freshness: "off" });
+    }
+
+    if (layers.launches.on) {
+      try {
+        const data = await getLaunches();
+        const rows = (data.items ?? []).slice(0, 40);
+        for (const m of rows) {
+          next.push({
+            id: `msn-${m.id}`,
+            lat: m.lat,
+            lon: m.lon,
+            label: m.name,
+            kind: "launch",
+            color: "var(--color-sat)",
+          });
+        }
+        useIntel.getState().setLayer("launches", {
+          count: rows.length,
+          freshness: data.freshness,
+          detail: data.source,
+        });
+      } catch (err) {
+        useIntel.getState().setLayer("launches", {
+          count: 0,
+          freshness: "error",
+          detail: err instanceof Error ? err.message : "Launch feed failed",
+        });
+      }
+    } else {
+      useIntel.getState().setLayer("launches", { count: 0, freshness: "off" });
+    }
+
+    if (layers.satellites.on) {
+      let count = 0;
+      try {
         const iss = await getIss();
         if (iss) {
           next.push({
@@ -363,31 +601,54 @@ export async function bootFlatMap(container: HTMLDivElement): Promise<() => void
             lon: iss.lon,
             label: "ISS",
             kind: "satellite",
-            color: "#7ee0a8",
+            color: "var(--color-ship)",
           });
+          count += 1;
         }
+        const data = await getSatellites();
+        const items = (data.items ?? []).filter((s) => s.norad !== 25544).slice(0, 48);
+        for (const item of items) {
+          const pos = satLatLon(item);
+          if (!pos) continue;
+          next.push({
+            id: `sat-${item.norad}`,
+            lat: pos.lat,
+            lon: pos.lon,
+            label: item.name,
+            kind: "satellite",
+            color: "var(--color-sat)",
+          });
+          count += 1;
+        }
+        useIntel.getState().setLayer("satellites", {
+          count,
+          freshness: data.freshness,
+          detail: data.source,
+        });
+      } catch (err) {
+        useIntel.getState().setLayer("satellites", {
+          count,
+          freshness: count ? "delayed" : "error",
+          detail: err instanceof Error ? err.message : "Catalog failed",
+        });
       }
-    } catch {
-      /* keep last marks */
+    } else {
+      useIntel.getState().setLayer("satellites", { count: 0, freshness: "off" });
     }
-    if (destroyed) return;
+
+    if (destroyed || my !== loadGen) return;
     marks = next;
-    useIntel.getState().setLayer("flights", {
-      count: next.filter((m) => m.kind === "flight" || m.kind === "military").length,
-      freshness: layers.flights.on ? LAYER_META.flights.freshness : "off",
-    });
     renderMarks();
   }
 
   const unsub = useIntel.subscribe((s, prev) => {
     if (s.mapSource !== prev.mapSource) api.setMapSource(s.mapSource);
     if (s.style !== prev.style) api.setStyle(s.style);
-    if (
-      s.layers.flights.on !== prev.layers.flights.on ||
-      s.layers.earthquakes.on !== prev.layers.earthquakes.on ||
-      s.layers.fires.on !== prev.layers.fires.on ||
-      s.layers.satellites.on !== prev.layers.satellites.on
-    ) {
+    const layerChanged = (Object.keys(s.layers) as Array<keyof typeof s.layers>).some(
+      (id) => s.layers[id].on !== prev.layers[id].on,
+    );
+    if (layerChanged) {
+      seedLocal();
       void refreshMarks();
     }
   });
@@ -412,8 +673,9 @@ export async function bootFlatMap(container: HTMLDivElement): Promise<() => void
   useIntel.getState().setBoot("We're in", 100);
   useIntel.getState().setReady(true);
   flash("Phone map is live. Pinch, drag, hunt.");
+  seedLocal();
   void refreshMarks();
-  const markTimer = window.setInterval(() => void refreshMarks(), 20_000);
+  const markTimer = window.setInterval(() => void refreshMarks(), 8_000);
 
   return () => {
     destroyed = true;
