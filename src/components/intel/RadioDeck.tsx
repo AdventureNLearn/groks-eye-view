@@ -1,12 +1,11 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { Pause, Play, Plus, Radio, SkipBack, SkipForward, Trash2, X } from "lucide-react";
 import { readNowPlaying, searchRadioStations } from "@/lib/feeds/radio";
-import { attachRadioChain, type RadioChain } from "@/lib/intel/audioChain";
+import { bindRadioPlayer } from "@/lib/intel/radioPlayer";
 import {
   PRESET_GROUPS,
   PRESET_STATIONS,
   findStation,
-  stationPlayUrls,
   useRadio,
   type RadioGroup,
   type RadioStation,
@@ -17,93 +16,24 @@ import type { RadioSearchHit } from "@/lib/feeds/radio";
 export function RadioDeck() {
   const picker = useRadio((s) => s.picker);
   const playing = useRadio((s) => s.playing);
-  const volume = useRadio((s) => s.volume);
   const stationId = useRadio((s) => s.stationId);
   const custom = useRadio((s) => s.custom);
   const error = useRadio((s) => s.error);
-  const audioRef = useRef<HTMLAudioElement>(null);
-  const chainRef = useRef<RadioChain | null>(null);
-  const lastKey = useRef("");
-  const urlIndex = useRef(0);
-  const suppressError = useRef(0);
   const station = findStation(stationId, custom) ?? PRESET_STATIONS[0];
-
-  async function ensureChain() {
-    const el = audioRef.current;
-    if (!el) return;
-    if (chainRef.current) {
-      await chainRef.current.resume();
-      chainRef.current.setVolume(useRadio.getState().volume);
-      return;
-    }
-    const chain = await attachRadioChain(el);
-    if (chain) {
-      chainRef.current = chain;
-      chain.setVolume(useRadio.getState().volume);
-    } else if (el) {
-      el.volume = useRadio.getState().volume;
-    }
-  }
-
-  function tune(audio: HTMLAudioElement, url: string) {
-    suppressError.current = Date.now() + 2500;
-    audio.src = url;
-    audio.preload = "auto";
-    audio.load();
-  }
-
-  function playOrAdvance(audio: HTMLAudioElement, urls: string[]) {
-    void audio.play().catch((err: unknown) => {
-      const name = err instanceof Error ? err.name : "";
-      if (name === "AbortError" || name === "NotAllowedError") return;
-      const next = urlIndex.current + 1;
-      if (next < urls.length) {
-        urlIndex.current = next;
-        tune(audio, urls[next]);
-        playOrAdvance(audio, urls);
-        return;
-      }
-      useRadio.getState().setError("Station's dead. Try another.");
-      flash("Radio missed. Try another station.");
-    });
-  }
 
   useEffect(() => {
     useRadio.getState().hydrate();
-    const prime = () => {
-      void ensureChain();
-    };
-    window.addEventListener("pointerdown", prime, { once: true });
-    return () => window.removeEventListener("pointerdown", prime);
+    bindRadioPlayer({
+      onPlaying: () => useRadio.getState().setBuffering(false),
+      onWaiting: () => {
+        if (useRadio.getState().playing) useRadio.getState().setBuffering(true);
+      },
+      onFailed: (msg) => {
+        useRadio.getState().setError(msg);
+        flash(msg);
+      },
+    });
   }, []);
-
-  useEffect(() => {
-    if (chainRef.current) chainRef.current.setVolume(volume);
-    else if (audioRef.current && !chainRef.current) audioRef.current.volume = volume;
-  }, [volume]);
-
-  useEffect(() => {
-    const audio = audioRef.current;
-    if (!audio || !station) return;
-    if (!playing) {
-      audio.pause();
-      return;
-    }
-    const urls = stationPlayUrls(station);
-    const key = `${station.id}:${station.url}`;
-    if (lastKey.current !== key) {
-      lastKey.current = key;
-      urlIndex.current = 0;
-      tune(audio, urls[0]);
-    }
-    playOrAdvance(audio, urls);
-    const onPlaying = () => {
-      useRadio.getState().setBuffering(false);
-      void ensureChain();
-    };
-    audio.addEventListener("playing", onPlaying);
-    return () => audio.removeEventListener("playing", onPlaying);
-  }, [playing, station?.id, station?.url]);
 
   useEffect(() => {
     if (!playing || !station) {
@@ -113,60 +43,22 @@ export function RadioDeck() {
     let cancelled = false;
     const pull = async () => {
       try {
-        const urls = stationPlayUrls(station);
-        const url = urls[urlIndex.current] ?? station.url;
-        const res = await readNowPlaying({ data: { url } });
+        const res = await readNowPlaying({ data: { url: station.url } });
         if (!cancelled && res.title) useRadio.getState().setNowPlaying(res.title);
       } catch {
         /* metadata is bonus */
       }
     };
-    void pull();
-    const id = window.setInterval(pull, 12000);
+    const wait = window.setTimeout(() => void pull(), 4000);
+    const id = window.setInterval(pull, 15000);
     return () => {
       cancelled = true;
+      window.clearTimeout(wait);
       window.clearInterval(id);
     };
   }, [playing, station?.id, station?.url]);
 
-  return (
-    <>
-      <audio
-        ref={audioRef}
-        preload="auto"
-        playsInline
-        onWaiting={() => useRadio.getState().setBuffering(true)}
-        onPlaying={() => useRadio.getState().setBuffering(false)}
-        onStalled={() => {
-          const audio = audioRef.current;
-          if (!audio || !useRadio.getState().playing) return;
-          if (Date.now() < suppressError.current) return;
-          if (audio.readyState >= 2) return;
-          const urls = station ? stationPlayUrls(station) : [];
-          if (!urls.length) return;
-          useRadio.getState().setBuffering(true);
-          tune(audio, urls[urlIndex.current] ?? urls[0]);
-          playOrAdvance(audio, urls);
-        }}
-        onError={() => {
-          if (!useRadio.getState().playing) return;
-          if (Date.now() < suppressError.current) return;
-          const audio = audioRef.current;
-          const urls = station ? stationPlayUrls(station) : [];
-          const next = urlIndex.current + 1;
-          if (audio && next < urls.length) {
-            urlIndex.current = next;
-            tune(audio, urls[next]);
-            playOrAdvance(audio, urls);
-            return;
-          }
-          useRadio.getState().setError("Stream failed.");
-          flash("Radio stream failed.");
-        }}
-      />
-      {picker && <RadioPicker station={station} custom={custom} error={error} />}
-    </>
-  );
+  return picker ? <RadioPicker station={station} custom={custom} error={error} /> : null;
 }
 
 function RadioPicker({

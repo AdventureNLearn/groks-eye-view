@@ -1,4 +1,5 @@
 import { create } from "zustand";
+import { setPlayerVolume, startRadio, stopRadio } from "./radioPlayer";
 
 export type RadioGroup = "swamp" | "classic" | "country" | "mix";
 
@@ -342,6 +343,7 @@ export const useRadio = create<RadioState>((set, get) => ({
     const s = get();
     const stationId = id && findStation(id, s.custom) ? id : s.stationId;
     const switched = stationId !== s.stationId;
+    const st = findStation(stationId, s.custom);
     set({
       playing: true,
       stationId,
@@ -350,11 +352,15 @@ export const useRadio = create<RadioState>((set, get) => ({
       nowPlaying: switched ? "" : s.nowPlaying,
     });
     savePersist({ ...get(), stationId });
+    if (st) void startRadio(stationPlayUrls(st), get().volume);
   },
-  pause: () => set({ playing: false, buffering: false }),
+  pause: () => {
+    set({ playing: false, buffering: false });
+    stopRadio();
+  },
   toggle: () => {
     const s = get();
-    if (s.playing) set({ playing: false, buffering: false });
+    if (s.playing) get().pause();
     else get().play();
   },
   next: () => {
@@ -375,8 +381,12 @@ export const useRadio = create<RadioState>((set, get) => ({
     const volume = Math.min(1, Math.max(0, n));
     set({ volume });
     savePersist(get());
+    setPlayerVolume(volume);
   },
-  setError: (error) => set({ error, playing: error ? false : get().playing, buffering: false }),
+  setError: (error) => {
+    if (error) stopRadio();
+    set({ error, playing: error ? false : get().playing, buffering: false });
+  },
   setNowPlaying: (nowPlaying) => set({ nowPlaying }),
   setBuffering: (buffering) => set({ buffering }),
   addCustom: (station) => {
@@ -399,10 +409,11 @@ export const useRadio = create<RadioState>((set, get) => ({
     return null;
   },
   removeCustom: (id) => {
+    const dropping = get().stationId === id;
     const custom = get().custom.filter((s) => s.id !== id);
-    const stationId = get().stationId === id ? "ccr" : get().stationId;
-    const playing = get().stationId === id ? false : get().playing;
-    set({ custom, stationId, playing });
+    const stationId = dropping ? "ccr" : get().stationId;
+    if (dropping) get().pause();
+    set({ custom, stationId });
     savePersist(get());
   },
 }));
