@@ -140,6 +140,7 @@ export type CommandAction =
   | { type: "count"; kind: "flights" | "vessels" | "satellites" }
   | { type: "scene"; id: SceneId }
   | { type: "next" }
+  | { type: "radio"; id?: string; on?: boolean }
   | { type: "unknown"; text: string };
 
 export type EngineApi = {

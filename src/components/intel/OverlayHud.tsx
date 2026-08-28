@@ -3,19 +3,25 @@ import {
   Crosshair,
   Globe,
   Layers,
+  MessageSquare,
   Plane,
+  Radio,
   Search,
   Send,
   Share2,
   X,
 } from "lucide-react";
+import { CommsChat } from "./CommsChat";
 import { FirstRun } from "./FirstRun";
+import { RadioDeck } from "./RadioDeck";
 import { formatAltFt, formatKts, formatLatLon, zuluNow } from "@/lib/intel/geo";
 import { PRESETS } from "@/lib/intel/locations";
 import { runCommand } from "@/lib/intel/runCommand";
 import { playScene } from "@/lib/intel/scenes";
 import { copyShareUrl } from "@/lib/intel/share";
 import { flash, hydrateFirstRun, useIntel } from "@/lib/intel/store";
+import { useComms } from "@/lib/intel/comms";
+import { useRadio } from "@/lib/intel/radio";
 import { getWeather } from "@/lib/feeds/world";
 import {
   LAYER_META,
@@ -61,6 +67,10 @@ export function OverlayHud() {
   const mapSource = useIntel((s) => s.mapSource);
   const engine = useIntel((s) => s.engine);
   const weather = useIntel((s) => s.weather);
+  const chatOpen = useComms((s) => s.open);
+  const radioOpen = useRadio((s) => s.picker);
+  const radioPlaying = useRadio((s) => s.playing);
+  const hideChrome = chatOpen || radioOpen;
   const inputRef = useRef<HTMLInputElement>(null);
   const [zulu, setZulu] = useState("");
   const [mobileLayers, setMobileLayers] = useState(false);
@@ -78,6 +88,14 @@ export function OverlayHud() {
       const tag = (e.target as HTMLElement | null)?.tagName;
       const typing = tag === "INPUT" || tag === "TEXTAREA";
       if (e.key === "Escape") {
+        if (useComms.getState().open) {
+          useComms.getState().setOpen(false);
+          return;
+        }
+        if (useRadio.getState().picker) {
+          useRadio.getState().setPicker(false);
+          return;
+        }
         if (useIntel.getState().firstRun) useIntel.getState().dismissFirstRun(false);
         else if (useIntel.getState().cockpit) engine?.enterCockpit(false);
         else if (useIntel.getState().tracked) engine?.track(null);
@@ -88,6 +106,18 @@ export function OverlayHud() {
       if (e.key === "/") {
         e.preventDefault();
         inputRef.current?.focus();
+        return;
+      }
+      if ((e.key === "g" || e.key === "G") && !useIntel.getState().firstRun) {
+        const next = !useComms.getState().open;
+        useComms.getState().setOpen(next);
+        if (next) useRadio.getState().setPicker(false);
+        return;
+      }
+      if ((e.key === "r" || e.key === "R") && !useIntel.getState().firstRun) {
+        const next = !useRadio.getState().picker;
+        useRadio.getState().setPicker(next);
+        if (next) useComms.getState().setOpen(false);
         return;
       }
       const styleHit = STYLE_META.find((s) => s.key === e.key);
@@ -183,6 +213,35 @@ export function OverlayHud() {
               <button
                 type="button"
                 className="panel grid size-11 place-items-center"
+                title="Grok comms (G)"
+                aria-label="Toggle Grok comms"
+                onClick={() => {
+                  const next = !useComms.getState().open;
+                  useComms.getState().setOpen(next);
+                  if (next) useRadio.getState().setPicker(false);
+                }}
+              >
+                <MessageSquare className="size-4" strokeWidth={1.75} />
+              </button>
+              <button
+                type="button"
+                className="panel relative grid size-11 place-items-center"
+                title="Radio tuner (R)"
+                aria-label="Toggle radio"
+                onClick={() => {
+                  const next = !useRadio.getState().picker;
+                  useRadio.getState().setPicker(next);
+                  if (next) useComms.getState().setOpen(false);
+                }}
+              >
+                <Radio className="size-4" strokeWidth={1.75} />
+                {radioPlaying && (
+                  <span className="live-dot absolute top-1.5 right-1.5" data-state="live" />
+                )}
+              </button>
+              <button
+                type="button"
+                className="panel grid size-11 place-items-center"
                 title="Copy share link"
                 aria-label="Share view"
                 onClick={async () => {
@@ -205,8 +264,8 @@ export function OverlayHud() {
           </header>
 
           <section
-            className={`panel layer-rail absolute top-24 left-3 z-10 overflow-y-auto p-3 md:top-28 md:left-4 md:block ${
-              mobileLayers ? "" : "hidden"
+            className={`panel layer-rail absolute top-24 left-3 z-10 overflow-y-auto p-3 md:top-28 md:left-4 ${
+              hideChrome ? "hidden" : mobileLayers ? "" : "hidden md:block"
             }`}
           >
             <div className="mb-2 flex items-center justify-between">
@@ -247,7 +306,11 @@ export function OverlayHud() {
             </ul>
           </section>
 
-          <aside className="panel absolute top-24 right-3 hidden w-56 p-3 md:top-28 md:right-4 md:block">
+          <aside
+            className={`panel absolute top-24 right-3 hidden w-56 p-3 md:top-28 md:right-4 ${
+              hideChrome ? "md:hidden" : "md:block"
+            }`}
+          >
             <p className="kicker">Display</p>
             <div className="mt-2 grid grid-cols-2 gap-1">
               <Toggle
@@ -318,7 +381,7 @@ export function OverlayHud() {
             </div>
           </aside>
 
-          {tracked && (
+          {tracked && !hideChrome && (
             <article className="panel absolute right-3 bottom-36 left-3 z-10 p-3 md:top-auto md:right-4 md:bottom-28 md:left-auto md:w-72">
               <div className="flex items-start justify-between gap-2">
                 <div className="min-w-0">
@@ -413,7 +476,7 @@ export function OverlayHud() {
         </div>
       )}
 
-      {!clean && (
+      {!clean && !hideChrome && (
         <footer className="absolute right-3 bottom-3 left-3 z-10 md:right-4 md:bottom-4 md:left-4">
           <div className="mx-auto flex max-w-4xl flex-col gap-2">
             <div className="flex flex-wrap gap-1">
@@ -468,7 +531,7 @@ export function OverlayHud() {
             </div>
             <p className="hud-num px-1 text-xs text-subtle">
               {formatLatLon(cam.lat, cam.lon)} · {formatAltFt(cam.height)} AGL · drag to orbit ·
-              scroll to zoom · click a contact · 1–6 styles · D detect
+              scroll to zoom · click a contact · 1–6 styles · D detect · G comms · R radio
             </p>
           </div>
         </footer>
@@ -490,6 +553,9 @@ export function OverlayHud() {
         </div>
       )}
 
+      <CommsChat />
+      <RadioDeck />
+
       {firstRun && <FirstRun />}
 
       {detection && !cockpit && (
@@ -498,6 +564,7 @@ export function OverlayHud() {
         </div>
       )}
 
+      {!hideChrome && (
       <p className="pointer-events-auto absolute bottom-2 left-3 z-10 max-w-[min(92vw,32rem)] text-xs text-subtle">
         Public data · not for navigation · Grok’s Eye View, inspired by{" "}
         <a
@@ -509,6 +576,7 @@ export function OverlayHud() {
           Bilawal Sidhu’s God’s Eye View
         </a>
       </p>
+      )}
     </div>
   );
 }

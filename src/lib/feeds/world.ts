@@ -352,7 +352,7 @@ export const interpretCommand = createServerFn({ method: "POST" })
           {
             role: "system",
             content:
-              "Map a globe operator utterance to ONE JSON object. Keys: type (flyTo|trackNearest|cockpit|style|layer|reset|hud|detection|count|scene|next|unknown), plus fields q, kind (flight|vessel|satellite|iss), on (bool), style (normal|crt|nvg|flir|noir|snow), id (flights|military|vessels|satellites|earthquakes|fires|launches|orbital|night|fire). No markdown.",
+              "Map a globe operator utterance to ONE JSON object. Keys: type (flyTo|trackNearest|cockpit|style|layer|reset|hud|detection|count|scene|next|radio|unknown), plus fields q, kind (flight|vessel|satellite|iss), on (bool), style (normal|crt|nvg|flir|noir|snow), id (flights|military|vessels|satellites|earthquakes|fires|launches|orbital|night|fire|ccr|seventies|bootliquor). Radio: play CCR/creedence => type radio id ccr on true. No markdown.",
           },
           { role: "user", content: data.text.slice(0, 240) },
         ],

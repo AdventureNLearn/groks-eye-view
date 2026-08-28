@@ -98,7 +98,7 @@ export const useIntel = create<IntelState>((set) => ({
   cleanUi: false,
   firstRun: true,
   command: "",
-  commandHint: "yo tokyo · find a plane · night vision",
+  commandHint: "yo tokyo · put on creedence · find a plane",
   toast: "",
   placeName: "Earth",
   cam: { lat: 20, lon: -30, height: 20_000_000, heading: 0 },

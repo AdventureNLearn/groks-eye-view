@@ -17,7 +17,9 @@ If you like the concept, go star his project.
 - First look: **Planes, please**, **Space junk**, **The planet is yelling**, or just the globe
 - Drag to orbit, scroll to zoom, click a contact to lock it
 - **Cockpit** = you are the plane now · **D** detection boxes · **1–6** optical / CRT / NVG / FLIR / Noir / Snow
-- Command bar: `yo tokyo`, `find a plane`, `night vision`
+- Command bar: `yo tokyo`, `find a plane`, `night vision`, `put on creedence`
+- **G** opens Grok comms — ask about a contact, a city, or the view
+- **R** opens the tuner — Creedence internet radio, plus add your own station
 - Share copies the camera for the group chat
 
 ## Run
@@ -30,8 +32,9 @@ npm run dev
 Cesium assets are copied from `node_modules/cesium` at dev/build time. No
 Google 3D tiles, no accounts, no database.
 
-Optional: `XAI_API_KEY` on the server lets the command bar parse free-form
-language. Local parsers still work without it.
+Optional: `XAI_API_KEY` on the server lets Grok comms answer questions about
+the globe, and lets the command bar parse free-form language. Local parsers
+and the radio still work without it.
 
 ## Stack
 

@@ -32,6 +32,25 @@ export function parseCommand(raw: string): CommandAction {
   if (/^(reset|home|full globe|zoom out|globe view)\b/i.test(text)) {
     return { type: "reset" };
   }
+  if (/\b(pause radio|stop radio|radio off|mute radio)\b/i.test(text)) {
+    return { type: "radio", on: false };
+  }
+  if (
+    /\b(creedence|ccr|swamp rock|lookin.? out|green river|fortunate son)\b/i.test(text) &&
+    /\b(play|put on|tune|radio|spin)\b/i.test(text)
+  ) {
+    return { type: "radio", id: "ccr", on: true };
+  }
+  if (/^(play |put on |spin )?(some )?(ccr|creedence)$/i.test(text)) {
+    return { type: "radio", id: "ccr", on: true };
+  }
+  if (/\b(left coast|70s radio|seventies)\b/i.test(text) && /\b(play|put on|radio)\b/i.test(text)) {
+    return { type: "radio", id: "seventies", on: true };
+  }
+  if (/\bboot liquor\b/i.test(text)) return { type: "radio", id: "bootliquor", on: true };
+  if (/^(radio on|play radio|open radio|tuner)\b/i.test(text)) {
+    return { type: "radio", on: true };
+  }
   if (/\b(next contact|next aircraft|next plane)\b/i.test(text)) {
     return { type: "next" };
   }

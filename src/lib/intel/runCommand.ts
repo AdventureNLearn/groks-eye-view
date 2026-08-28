@@ -1,6 +1,7 @@
 import { parseCommand } from "./commands";
 import { playScene } from "./scenes";
 import { flash, useIntel } from "./store";
+import { useRadio } from "./radio";
 import { interpretCommand } from "@/lib/feeds/world";
 import {
   LAYER_META,
@@ -47,6 +48,9 @@ function fromUnknown(raw: VoiceAction): CommandAction {
   if (type === "detection") return { type: "detection", on: Boolean(raw.on) };
   if (type === "scene" && isScene(raw.id)) return { type: "scene", id: raw.id };
   if (type === "next") return { type: "next" };
+  if (type === "radio") {
+    return { type: "radio", id: typeof raw.id === "string" ? raw.id : undefined, on: raw.on };
+  }
   if (type === "count" && (raw.kind === "flights" || raw.kind === "vessels" || raw.kind === "satellites")) {
     return { type: "count", kind: raw.kind };
   }
@@ -71,6 +75,17 @@ export async function runCommand(text: string) {
 export async function applyAction(action: CommandAction, raw = "") {
   const s = useIntel.getState();
   const engine = s.engine;
+  if (action.type === "radio") {
+    if (action.on === false) {
+      useRadio.getState().pause();
+      flash("Radio off");
+    } else {
+      useRadio.getState().play(action.id);
+      const id = action.id ?? useRadio.getState().stationId;
+      flash(id === "ccr" ? "Creedence on the wire" : "Radio on");
+    }
+    return;
+  }
   if (!engine) return;
 
   switch (action.type) {

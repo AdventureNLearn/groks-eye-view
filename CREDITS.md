@@ -25,6 +25,9 @@ project.
 | Places | [Nominatim / OSM](https://nominatim.org/) | Geocoding. |
 | Weather | [Open-Meteo](https://open-meteo.com/) | Tracked-contact WX. |
 | Globe imagery | Esri World Imagery, OpenStreetMap, CARTO | Tiles at runtime. |
+| Creedence radio | [Exclusive Radio](https://exclusive.radio/) | Public internet stream. |
+| 70s / americana radio | [SomaFM](https://somafm.com/) | Left Coast 70s, Boot Liquor. |
+| Station search | [Radio Browser](https://www.radio-browser.info/) | Directory for custom adds. |
 
 Shipping lanes are modeled corridors, not live AIS. When a live flight feed is
 unavailable the globe says so and draws simulated routes.
